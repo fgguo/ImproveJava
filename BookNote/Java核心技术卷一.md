@@ -344,6 +344,320 @@ Java引入了关键字assert，这个关键字有两种形式：
 #### 反射和泛型
 没看，==
 ### 集合
+#### Java集合框架
+- 集合类的基本接口是Collection接口。这个接口有两个基本方法，add和iterator。add方法向集合中添加元素，iterator方法用于返回一个实现了Iterator接口的对象
+##### 迭代器
+- Iterator接口包含四个方法：next,hasNext,remove,forEachRemaining。
+- 通过反复调用next方法，可以逐个访问集合中的每个元素。
+- 如果到达了集合的末尾，next方法会抛出一个NoSuchElementException。因此，如果想要看集合中的所有元素，就请求一个迭代器，当hasNext返回true时，就反复地调用next方法。
+- "for each"循环可以处理任何实现了Iterable接口的对象，这个接口只包含了一个iterator方法。Collection接口扩展了Iterable接口，因此标准类库中的任何集合都可以使用"for each"循环
+- 也可不使用循环，而是调用forEachRemaining方法并提供一个lambda表达式，如iter.forEachRemaining(e->do something with e);
+- 可以认为Java的迭代器位于两个元素之间，当调用next时，迭代器就越过下一个元素，并返回刚刚越过的那个元素的应用。
+- Iterator接口的remove方法将会删除上次调用next方法时返回的元素。next方法和remove方法之间存在依赖性，如果调用remove方法前没有调用next是不合法的。
+  
+Collection接口声明了很多有用的方法，所有的实现类都必须提供这些方法，包括：
+- int size():返回存储在集合中的元素个数
+- boolean isEmpty()：如果集合中没有元素，返回true
+- boolean contains(Object obj)：如果集合中包含一个与obj相等的对象，返回true
+- boolean containsAll(Collection<?>other):如果包含other集合中的所有元素，返回true
+- boolean add(E element)：添加一个元素到集合中，如果这个调用改变了集合，返回true
+- boolean addAll(Collection<? extends E> other)：将other集合中所有元素添加到这个集合，如果这个调用改变了集合，返回true
+- boolean remove(Object obj)：从这个集合中，删除等于obj的对象，有过有匹配的对象被删除，返回true
+- boolean removeAll(Collection<?> other)：从这个集合删除other集合中存在的所有元素，如果这个调用改变了集合，返回true
+- boolean removeIf(Predicate<? super E> filter)：从这个集合删除filter返回true的所有元素，如果这个调用改变了集合，返回true
+- void clear():从这个集合中删除所有的元素
+- boolean retainAll(Collection<?> other)：从集合中删除所有与other集合元素不同的元素，如果这个调用改变了集合，则返回true
+- Object [] toArray()：返回这个集合中的对象的数组
+- <T> T[] toArray(T [] arrayToFill)：返回这个集合的对象的数组。如果arrayToFill数组足够大，就将集合中的元素填入这个数组，剩余空间填null；否则，分配一个新数组，其成员类型与arrayToFill成员类型相同，其长度等于集合的大小，并填充集合元素。
+#### 集合框架的接口
+![集合框架的接口.png](img.png)
+- 集合有两个基本接口：collection和map 
+#### 具体集合
+##### 链表LinkedList
+写的磨磨唧唧，看书吧，378
+- 383页常用API
+LinkedList的接口：
+- 将某个元素添加到列表的头部或尾部：void addFirst(E element)，void addLast(E element)
+- 返回列表头部或尾部的元素：E getFirst()，E getLast()
+- 删除并返回列表头部或尾部元素：E removeFirst()，E removeLast()
+##### 队列与双端队列
+- 队列允许高效的在尾部添加元素，并在头部删除元素。双端队列(即deque)允许在头部和尾部都高效地添加或删除元素，不支持在队列中间添加元素
+- Java 6引入了Deque接口，ArrayDeque和LinkedList实现了这个接口，这两个类都可以提供双端队列
 
+java.util.Queue的接口：
+- boolean add(E element)和boolean offer(E element)：如果队列没有满，将给定的元素添加到这个队列的队尾并返回true。如果队列已满，第一个方法抛出一个异常，第二个方法返回false。
+- E remove() 和 E poll()：假如队列不空，删除并返回这个队列对头的元素。如果队列是空的，第一个方法抛出异常，第二个方法返回null
+- E element()和E peek()：假如队列不空，返回这个队列对头的元素但不删除。如果队列空，第一个方法抛出异常，第二个方法返回null
 
+Java.util.Deque的接口：
+- void addFirst(E element),void addLast(E element)，boolean offerFirst(E element),boolean offerLast(E element)：将给定的对象添加到双端队列的对头或队尾。如果双端队列已满，前面两个方法会抛出异常，后两个方法返回false。
+- E removeFirst(),E removeLast(),E pollFirst(),E pollLast()：如果这个双端队列不空，删除并返回队头或队尾的元素，如果为空，前两个方法抛出异常，后两个方法返回null
+- E getFirst(),E getLast(), E peekFirst(), E peekLast()：如果双端队列不空，返回队头或队尾的元素但不删除。如果为空，则前面两个方法抛出异常，后两个方法返回null。
+##### 优先队列
+- 优先队列PriorityQueue使用了堆来实现，默认下，其add和remove可以让最后的元素移动到根。
+- 与TreeSet一样，优先队列既可以保存实现了Comparable接口的类对象，也可以保存构造器中提供的Comparator对象。如PriorityQueue(int initialCapacity，Comparator<? super E> c)，会使用指定的比较器进行排序
+#### Map
+映射(map)数据结构用来存放键值对，如果提供了键，就能够查找值、
 
+java.util.Map<K,V>的方法：
+- V get(Object Key):获取与键关联的对象，如果映射中没有这个队形，则返回null。实现类可以禁止键为null
+- V getOrDefault(Object key, V defaultValue):获得与键关联的值，如果为找到这个键则返回defaultValue
+- V put(K key, V value)：将键值对存到映射中，如果这个键已经存在，新的对象将取代与这个键关联的旧对象，这个方法将返回旧值。如果之前没有这个键，则返回null
+- void putAll(Map<? extends K, ? extends V> entries)：将给定map中的所有条目添加到这个map中
+- boolean containsKey(Object key)：如果在map中已经有这个键，返回true
+- boolean containsValue(Object value)：如果在map中已经有这个值，返回true
+- void forEach(BiConsumer<? super K， ? super V> action):对这map中的所有键值对应用这个动作(没看懂咋用)。
+
+##### 更新条目
+书397页
+##### 映射视图
+可以得到map的视图(view)——这是实现了Collection接口或某个子接口的对象
+- 有3种视图，键集、值集合(不是一个集合)以及键值对集。方法Set<K> keySet(), Collection<V> values, Set<Map.Entry<K,V>> entrySet()会分别返回这三个视图
+- keySet不是HashSet或TreeSet，而是实现了Set接口的另外某个类的对象。Set接口扩展了Collection接口，因此，可以像使用任何集合一样使用keySet。
+- 如果想同时查看键和值，可以通过枚举映射条目来避免查找值。如：
+
+````
+  for(Map.Entry<String, Employee> entry:staff.entrySet()){
+    String k = entry.getKey();
+    Employee v = entry.getValue();
+    do something with k,v;
+    
+    可以使用var代码Map.Entry
+    for(var entry : map.entrySet()){
+      do something with entry.getKey(), entry.getValue()
+    }
+    
+    最简单，可以使用forEach方法
+    map.forEach((k,v) -> {do something with k, v;});
+````
+
+- 可以从上述集合中删除元素，但是不能添加任何元素。如果从键集合删除元素，键和关联的值将从map中删除，如果在values集合中删除元素，所删除的值及其相应的键将从映射中删除，如果删除Entry集合的元素，他们也将从map中删除。
+##### 几个专用的映射类
+书399-402.包括WeakHashMap,LinkedHashSet,LinkedHashMap,EnumSet,EnumMap,IdentityHashMap
+#### 视图与包装器
+##### 小集合
+Java 9引入了一些静态方法，可以生成给定元素的集或列表，以及给定键值对的映射。例如
+````
+  List<String> name = List.of("peter","Paul","Mary");
+  Set<Integer> numbers = Set.of(2, 3, 5);
+  Map<String, Integer> scores = Map.of("Peter", 2, "Paul", "3", "Mart", 5);
+````
+会分别生成包含三个元素的一个列表、一个集合、一个映射map。元素、键或值不能为null
+
+这些集合对象是不可修改的，如果需要一个可更改的集合，可以把这个不可修改的集合传递到列表或集合的构造器。
+##### 子范围
+- list.subList(startIndex, endIndex)可以获得子列表。第一个索引包括在内，第二个不包括。
+- 可以对子范围应用任何操作，而且操作会自动反映到这个列表，如，可以调用clear方法删除整个子范围，元素会自动从list列表清楚，并且子列表为空
+##### 不可修改的视图、同步视图、检查型视图、可选操作
+书406-408
+#### 算法
+Java集合类库包含了一些基本的算法：排序、二分查找和一些使用算法
+##### 排序与混排
+Collections类中的sort方法可以对实现了List接口的集合进行排序，这个方法假定列表元素实现了Comparable接口。如果想采用其他方式对列表进行排序，可使用List接口的sort方法并传入一个Comparator对象。
+
+如果想按降序对列表排序，可以使用静态的Collections.reverseOrder()，这个方法将返回一个比较器，比较器则返回b.compareTo(a)。例如
+````
+  Comparator cmp = Collections.reverseOrder();  
+  // sort the list
+  Collections.sort(list, cmp);  
+
+  也可以用Comparator获取一个比较器
+  staff.sort(Comoarator.reverseOrder());
+````
+
+Collections.shuffle(list)可以用来打乱数组排序
+
+##### 二分查找
+Collections.binarySearch方法实现了二分查找。要想查找某个元素，需要提供排序的集合以及要查找的元素，如果集合没有采用Comparable的compareTo方法排序，那么还要提供一个比较器对象。
+##### 简单算法和批操作
+书416到417
+
+##### 集合与数组的转换
+如果需要把一个数组转换为集合，Java 9的List.of包装器可以达到这个目的。例如
+````
+    String [] values = ...;
+    var staff = new HashSet<>(List.of(values);
+````
+如果想要从集合得到一个数组，虽然使用toArray方法可以得到一个对象数组，但是尽管知道集合中包含的是一个特定类型的对象，也不能使用强制类型转换。因为toArray方法返回的数组是一个Object数组，不能改变他的类型。
+
+实际上，必须提供一个指定类型并且长度为0的数组，这样返回是就会创建为相同类型的数组类型
+````
+  String [] values = (String) staff.toArray(new String[0]);
+  当然，如果愿意，可以构造一个大小正确的数组，这样就不会创建新数组
+  staff.toArray(new String[staff.size()]);
+````
+#### 遗留的集合
+##### Hashtabe
+##### 枚举
+##### 属性映射
+属性映射(property map)是一个特殊的映射结构，它有下面3个特性：
+- 键与值都是字符串
+- 可以很容易保存到文件以及从文件加载
+- 有一个二级表存放默认值
+
+实现属性映射的Java平台类名为Properties。属性映射对于指定程序的配置选项很有用
+- 具体使用看书422 423
+
+##### 栈
+java.util.Stack<E>:
+- E push(E item):将item压入栈并返回item
+- E pop():弹出并返回栈顶的item，如果栈空，不要调用
+- E peek():返回栈顶元素，但不弹出，如果栈空，不要调用
+##### 位图
+java.util.BitSet：书425页
+
+### 并发
+##### 线程创建和使用
+书554或demo代码
+#### 线程状态
+- New(新建)：当new操作符创建一个新线程时，这个线程还没有运行，它的状态是新建(new)。
+- Runnable(可运行)：一旦调用start方法，线程就处于可运行(runnable)状态，一个可运行的状态可能正在运行，也可能没有运行。
+- Blocked(阻塞)：当一个线程尝试获取一个内部的对象锁，而这个锁被其他线程占有，该线程就会被阻塞，当其他线程释放这个锁，并且线程调度器允许该线程持有这个锁时，它将变为非阻塞状态
+- Waiting(等待)：当线程等待另一个线程通知调度器出现一个条件时，这个线程会进入等待状态。
+- Timed waiting(计时等待)：有几个方法有超时参数，调用这些方法会让线程进入计时等待，这一状态将一直保持到超时期满或者接收到适当的通知。
+- Terminated(终止)：线程会由于以下两个原因之一而终止：run方法正常退出，线程自然终止；因为一个没有捕获的异常终止了run方法，使线程意外终止。
+#### 线程属性
+##### 中断线程
+- 除了废弃的stop方法，没有办法可以强制终止线程。但是interrupt方法可以请求终止一个线程。
+- 当对一个线程调用interrupt方法是，就会设置线程的中断状态。这是每个线程都有的boolean标志，每个线程都应该不时地检查这个标志，以判断线程是否被中断。
+- 要想得出是否设置了中断状态，首先调用静态的Thread.currentThread方法获取当前线程，再调用isInterrupt方法：
+````
+  while(!Thread.currentThread().isInterrupted() && more work to do){
+    do more work
+  }
+````
+但是，如果线程被阻塞，就无法检查中断状态。这里要引入InterruptedException异常。当在一个被sleep或wait调用阻塞的线程上调用interrupt方法时，那个阻塞调用将被一个异常中断。
+- 如果你的循环中调用了sleep，不要检查中断状态，而应当捕获InterruptedException异常，如下所示：
+````
+  Runnable r = ()->{
+    try{
+      ...
+      while(more work to do){
+        do more work;
+        Thread.sleep();
+      }
+    }
+    catch(InterruptedException e){
+      //thread was interrupted during sleep
+    }
+    finally{
+      clean up if required
+    }
+    //exiting the run method terminates the thread
+  }
+````
+- interrupted方法是一个静态方法，检查当前线程是否被中断，而且会清除该线程的中断状态。
+- isInterrupted方法是一个实例方法，可以检查是否有线程被中断，它不会改变中断状态
+
+- 不要在底层代码抑制InterruptedException异常！更好的选择是，用throws InterruptedException标记你的方法，去掉try语句块。这样调用者就可以捕获这个异常。
+##### 守护线程
+- 可以通过t.setDaemon(true);将一个线程转换为守护线程，这一方法必须在线程启动之前调用
+- 守护线程的唯一用途是为其他线程提供服务，只剩下守护线程时候，虚拟机就会退出
+##### 未捕获异常的处理器
+- 线程的run方法不能抛出任何检查型异常。但是非检查型异常可能会导致线程终止(死亡)
+- 在线程死亡之前，异常会传递到一个用于处理未捕获异常的处理器。这处理器必须属于一个实现了Thread.UncaughtExceptionHandler接口的类。
+- 可以为任何线程安装一个处理器。如果没有安装默认处理器，默认处理器则为null.但是如果没有为单个线程安装处理器，那么处理器就是该线程的ThreadGroup对象。
+##### 线程优先级
+- 默认情况下，一个线程会继承构造它的那个线程的优先级，可以用setPriority方法提高或降低一个线程的优先级。
+- 线程优先级默认为5，最高为10，最小为1.
+- 在没有使用操作系统线程的Java早期版本中，线程优先级可能很有用。不过现在不要使用线程优先级了
+#### 同步
+##### 竟态条件的例子
+先看书564和565。(代码已同步到src/com/demo/concurrency)
+##### 静态条件详解
+上一节的例子中，当两个线程试图同时更新同一个账户时，会出现数据异常。假如两个线程同时执行指令：accounts[to] += amount，这不是原子操作，会出现异常(具体解释可看书)。
+
+真正的问题是transfer方法可能会在执行到中间时被中断。如果能够确保线程失去控制之前方法已经运行完成，那么银行账户对象的状态就不会被破坏。
+
+##### 锁对象
+有两种机制可以防止并发访问代码块。Java语言提供了一个synchronized关键字来达到这一目的，另外Java 5引入了ReentrantLock类。
+
+用ReentrantLock保护代码块的基本结构如下：
+````
+  mylock.lock(); //A ReentrantLock object
+  try{
+    ...
+  }
+  finally{
+    mylock.unlock();
+  }
+````
+这个结构确保任何时刻只有一个线程进入临界区。一但一个线程锁定了锁对象，其他线程调用lock时，他们会暂停，直到第一个线程释放这个锁对象。
+
+**要把unlock操作包括在finally字句中，如果在临界区的代码抛出一个异常，锁必须释放，否则其他线程将永远阻塞**
+
+##### 条件对象
+书571页
+- 一个锁对象可以有一个或多个相关联的条件对象。
+- signalAll调用不会立即激活一个等待的线程。它只是解除等待线程的阻塞，使这些线程可以在当前线程释放锁之后竞争访问对象。
+- 只有当线程用拥有一个条件的锁时，它才能在这个条件上调用await、signalAll或signal方法。
+##### synchronized关键字
+Lock和Condition接口允许程序员充分控制锁。不过大多数情况下，并不需要那样控制，完全可以使用Java内置的一种机制。
+
+- 从Java 1.0版本开始，每个Java对象都有一个内部锁，如果一个方法声明时有synchronized关键字，那么对象的锁将保护整个方法，要调用这个方法，线程必须获得内部对象锁。
+- 例如，可以将Bank类的transfer方法声明为synchronized，而不必使用一个显示的锁。
+- 内部锁对象只有一个关联条件，wait方法将一个线程增加到等待集中，notifyAll/notify方法可以解除等待线程的阻塞。
+##### 同步块和监视器
+书580页
+##### volatile字段
+- 对共享变量除了赋值之外不做其他操作，那么可以将这些共享变量声明为volatile。
+- volatile关键字为实例字段的同步访问提供了一种免锁机制。
+- volatile变量不能提供原子性
+- 将字段声明为final也可以保证安全地访问一个共享字段。
+##### 原子性和死锁
+书583-586
+##### 线程局部变量
+ThreadLocal可以为各个线程提供各自独有的实例
+##### 为什么废弃stop和suspend
+- 无法知道什么时候调用stop是安全的，什么时候会导致对象被破坏
+- 如果调用suspend方法的线程视图获取同一个锁，那么程序死锁：被挂起的线程等着被回复，而将其挂起的线程等待获得锁。
+#### 线程安全的集合
+##### 阻塞队列
+书590。JUC下提供了阻塞队列的几个变体，LinkedBlockingQueue,ArrayBlockingQueue,PriorityBlockingQueue。
+
+##### 高效的映射、集合和队列
+- ConcurrentHashMap
+- ConcurrentSkipListMap
+- ConcurrentSkipListSet
+- ConcurrentLinkedQueue
+
+#### 任务和线程池
+- 构造一个线程的开销有些大，因为这涉及到与操作系统的交互
+- 如果需要创建大量的生命周期很短的线程，那么应该使用线程池。
+- 线程池中包含许多准备运行的线程，为线程提供一个Runnable，就会有一个线程调用run方法，当run方法退出时，这个线程不会死亡，而是留在池中准备为下一个请求提供服务。
+##### Callable和Future
+- Runnbale封装一个异步运行的任务，可以把它想象成一个没有参数和返回值的异步方法。
+- Callable与Runnable类似，但是有返回值。Callable接口是一个参数化的类型，只有一个方法call，类型参数是返回值的类型。如Callable<Integer>表示一个最终返回Integer的异步计算。
+- Future保存异步计算的结果。可以启动一个计算，将Future对象交给某个线程，这个Future对象的所有者在结果计算好之后就可以获取结果。
+- Future接口的无参get方法调用会阻塞，知道计算完成。还有一个get可以给定超时时间，在计算完成前调用超时，就会抛出一个超时异常。
+- 执行Callable的另一个方法是使用FutureTask。它实现了Future和Runnable接口，所以可以构造一个线程来执行这个任务：
+````
+  Callable<Integer> task = ...;
+  FutureTask futuretask = new FutureTask<Integer>(task);
+  new Thread(futuretask).start;
+  Integer result = task.get();
+````
+##### 执行器(Executors)
+Executors类有许多静态工厂方法，用来构造线程池：
+- newCachedThreadPool：构造一个线程池，会立即执行各个任务，如果有空闲线程可用，就使用现有的空闲线程去执行任务，如果没有可用的空闲线程，就创建一个新线程。
+- newFixedThreadPool：构造一个具有固定大小的线程池，如果提交的任务多于空闲线程池，就把未得到服务的任务放到任务队列中。当其他任务完成以后再运行这些排队的任务。
+- newSingleThreadPool：是一个退化了的大小为1的线程池，由一个线程顺序执行🔐提交的任务。
+
+这三个方法返回实现了ExecutorService接口的ThreadPollExecutor对象。 如果线程生存期很短，或者大量时间都在阻塞，那么可以使用一个缓存线程池。不过，如果线程工作量很大并且不阻塞，肯定不希望运行太多线程。为了得到最优的运行速度，并发线程数等于处理器核心数，在这种情况下，就应该使用固定线程池。
+
+下面总结了使用线程池时使用的工作：
+- 1、调用Executors类的静态方法构造一个线程池
+- 2、调用submit提交Runnable或Callable对象
+- 3、保存好返回的Future对象，一遍得到结果或者取消任务
+- 4、当不想再提交任务时，调用shutdown。
+##### 控制任务组
+- invokeAny方法提交一个Callable对象集合中的所有对象，并返回某个已完成任务的结果。
+- invokeAll方法提交一个Callable对象集合中的所有对象，这个方法会阻塞，直到所有任务都完成，并返回表示所有任务答案的一个Future对象列表。
+608页-611，解释及demo
+##### fork-join框架
+对每个处理器内核分别使用一个线程，以完成计算密集型任务，如图像或视频处理。书613页
+#### 异步计算。
+书615页
+##### 可完成Future
+- CompletableFuture类实现了Future接口，它提供了获取结果的另一种机制：注册一个回调，一旦结果可用，就会在某个线程中利用该结果调用这个回调。
+##### 组合可完成Future
