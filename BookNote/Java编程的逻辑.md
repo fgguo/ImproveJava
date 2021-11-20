@@ -465,4 +465,77 @@ finally语句有一个执行细节，如果在try或者catch语句内有return�
 
 ##### 异常处理的逻辑
 如果自己知道怎么处理异常，就进行处理；如果可以通过程序自动解决，就自动解决；如果异常可以被自己解决，就不需要再向上报告。如果自己不能完全解决，就应该向上报告。如果自己有额外信息可以提供，有助于分析和解决问题，就应该提供，可以以原异常为cause重新抛出一个异常。总有一层代码需要为异常负责，可能是知道如何处理该异常的代码，可能是面对用户的代码，也可能是主程序。如果异常不能自动解决，对于用户，应该根据异常信息提供用户能理解和对用户有帮助的信息；对运维和开发人员，则应该输出详细的异常链和异常栈到日志。这个逻辑**与在公司中处理问题的逻辑是类似的，每个级别都有自己应该解决的问题，自己能处理的自己处理，不能处理的就应该报告上级，把下级告诉他的和他自己知道的一并告诉上级，最终，公司老板必须要为所有问题负责。每个级别既不应该掩盖问题，也不应该逃避责任**。
+### 常用基础类
+#### 包装类
+- 每种包装类都有一个静态方法valueOf()，接受基本类型，返回引用类型，也都有一个实例方法xxxValue()返回对应的基本类型。
+- 将基本类型转换为包装类的过程，一般称为“装箱”，而将包装类型转换为基本类型的过程，则称为“拆箱”。Java 5以后引入了自动装箱和拆箱技术，可以直接将基本类型赋值给引用类型
+- hashCode和equals方法联系密切，对两个对象，如果equals方法返回true，则hashCode也必须一样。反之不要求，equal方法返回false时，hashCode可以一样，也可以不一样，但应该尽量不一样。hashCode的默认实现一般是将对象的内存地址转换为整数，子类如果重写了equals方法，也必须重写hashCode。
+- 除了toString方法外，包装类还有一些其他与String相关的方法。除了Character外，每个包装类都有一个静态的valueOf(String)方法，根据字符串表示返回包装类对象
+#### String
+- String类内部用一个用final修饰的字符数组表示字符串(Java 9是byte数组)，可以根据char数组构造String，String会根据参数新创建一个数组，并复制内容，而不会直接用参数中的字符数组。String中的大部分方法内部也都是操作的这个字符数组。
+- 字符串常量放在一个共享的地方，这个地方称为字符串常量池，它保存所有的常量字符串，每个常量只会保存一份，被所有使用者共享。当通过常量的形式使用一个字符串的时候，使用的就是常量池中的那个对应的String类型的对象。
+![img_13.png](img_13.png)
+![img_14.png](img_14.png)
+![img_15.png](img_15.png)
 
+##### StringBuilder
+- 通过new新建StringBuilder对象，通过append方法添加字符串，然后通过toString方法获取构建完成的字符串。
+- StringBuilder类也封装了一个字符数组，与String不同，它不是final的，可以修改。
+- 对于简单的情况，可以直接使用String的+和+=，对于复杂的情况，尤其是有循环的时候，应该直接使用StringBuilder。
+#### Arrays
+- Arrays的toString()方法可以方便地输出一个数组的字符串形式。
+- Arrays有sort方法可以对基本类型的数据排序，默认升序，sort还可以直接接受对象类型，但对象需要实现Comparable接口。如果希望按照从大到小排序呢？对于对象类型，可以指定一个不同的Comparator，可以用匿名内部类来实现Comparator，如：
+```
+    String arr = {"hello","world","acb"};
+    Array.sort(arr, new Comparator<String>(){
+        @Override
+        public int compare(String o1, String o2){
+            return o2.compareToIgnoreCase(o1);
+        }
+    });
+```
+
+- 二分查找,binarySearch
+
+#### 日期和时间(Java 8之前)
+##### Date 
+Date是Java API中最早引入的关于日期的类，一开始，Date也承载了关于年历的角色，但由于不能支持国际化，其中的很多方法都已经过时了，被标记为了@Deprecated，不再建议使用。
+- Date有两个构造方法：第一个构造方法是根据传入的毫秒数进行初始化；第二个构造方法是默认构造方法，它根据System.currentTimeMillis()的返回值进行初始化。System.currentTimeMillis()是一个常用的方法，它返回当前时刻距离纪元时的毫秒数。
+![img_16.png](img_16.png)
+  
+##### TimeZone
+TimeZone表示时区，它是一个抽象类，有静态方法用于获取其实例。获取当前的默认时区，代码为：
+```
+    //获取默认时区，并输出其ID
+    TimeZone tz = TimeZone.getDefault();
+    System.out.println(tz.getID())
+```
+
+##### Locale
+Locale表示国家（或地区）和语言，它有两个主要参数：一个是国家（或地区）；另一个是语言，每个参数都有一个代码，不过国家（或地区）并不是必需的。比如，中国内地的代码是CN，中国台湾地区的代码是TW，美国的代码是US，中文语言的代码是zh，英文语言的代码是en。与TimeZone类似，Locale也有静态方法获取默认值
+##### Calendar
+Calendar类是日期和时间操作中的主要类，它表示与TimeZone和Locale相关的日历信息，可以进行各种相关的运算。与Date类似，Calendar内部也有一个表示时刻的毫秒数。与new Date()类似，新创建的Calendar对象表示的也是当前时间，与Date不同的是， Calendar对象可以方便地获取年月日等日历信息。
+![img_17.png](img_17.png)
+Calendar是抽象类，不能直接创建对象，它提供了多个静态方法，可以获取Calendar实例，如getInstance()和带TimeZone和Locale参数的getInstance方法。
+##### DateFormat
+DateFormat类主要在Date和字符串表示之间进行相互转换，它有两个主要的方法： format将Date转换为字符串，parse将字符串转换为Date。
+##### SimpleDateFormat
+SimpleDateFormat是DateFormat的子类，相比DateFormat，它的一个主要不同是，它可以接受一个自定义的模式（pattern）作为参数，这个模式规定了Date的字符串形式
+pattern中的英文字符a～z和A～Z表示特殊含义，其他字符原样输出，这里：
+- yyyy：表示4位的年。
+- MM：表示月，用两位数表示。
+- dd：表示日，用两位数表示。
+- HH：表示24小时制的小时数，用两位数表示。
+- mm：表示分钟，用两位数表示。
+- ss：表示秒，用两位数表示。
+- E：表示星期几
+![img_18.png](img_18.png)
+  
+#### 随机
+##### Math.random
+Java中，对随机最基本的支持是Math类中的静态方法random()，它生成一个0～1的随机数，类型为double，包括0但不包括1。
+##### Random
+Random类提供了更为丰富的随机方法，它的方法不是静态方法，使用Random，先要创建一个Random实例。
+![img_19.png](img_19.png)
+
+看书7.6的随机密码、洗牌、带权重的随机选择、微信抢红包和北京购车摇号等代码
