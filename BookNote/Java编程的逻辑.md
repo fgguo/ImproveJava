@@ -887,3 +887,222 @@ Map接口表示键值对集合，经常根据键进行操作，它有两个主�
 此外，容器类提供的迭代器都有一个特点，都会在迭代中间进行结构性变化检测，如果容器发生了结构性变化，就会抛出ConcurrentModificationException，所以**不能在迭代中间直接调用容器类提供的add/remove方法，如需添加和删除，应调用迭代器的相关方法**。
 
 ### 文件基本技术
+#### 文件概述
+##### 基本概念和常识
+看书13.1.1
+##### Java文件概述
+**流**
+
+在Java中，文件一般不是单独处理的，而是视为输入输出（IO）设备的一种。Java使用基本统一的概念处理所有的IO，包括键盘、显示终端、网络等。这个统一的概念是**流**，流有输入流和输出流之分。输入流就是可以从中获取数据，输入流的实际提供者可以是键盘、文件、网络等；输出流就是可以向其中写入数据，输出流的实际目的地可以是显示终端、文件、网络等。
+
+Java IO的基本类大多位于包java.io中。类InputStream表示输入流，OutputStream表示输出流，而FileInputStream表示文件输入流，FileOutputStream表示文件输出流。有了流的概念，就有了很多面向流的代码，比如对流做加密、压缩、计算信息摘要、计算检验和等，这些代码接受的参数和返回结果都是抽象的流，它们构成了一个协作体系。
+
+**装饰器模式**
+
+基本的流按字节读写，没有缓冲区，这不方便使用。Java解决这个问题的方法是使用装饰器设计模式，引入了很多装饰类，对基本的流增加功能，以方便使用。一般一个类只关注一个方面，实际使用时，经常会需要多个装饰类。Java中有很多装饰类，有两个基类：过滤器输入流FilterInputStream和过滤器输出流FilterOutputStream。它有很多子类，这里列举一些：
+- 1）对流起缓冲装饰的子类是BufferedInputStream和BufferedOutputStream。
+- 2）可以按8种基本类型和字符串对流进行读写的子类是DataInputStream和DataOutputStream。
+- 3）可以对流进行压缩和解压缩的子类有GZIPInputStream、ZipInputStream、GZIPOutputStream和ZipOutputStream。
+- 4）可以将基本类型、对象输出为其字符串表示的子类有PrintStream。
+
+**Reader/Writer**
+
+以InputStream/OutputStream为基类的流基本都是以二进制形式处理数据的，不能够方便地处理文本文件，没有编码的概念，能够方便地按字符处理文本数据的基类是Reader和Writer，它也有很多子类：
+- 1）读写文件的子类是FileReader和FileWriter。
+- 2）起缓冲装饰的子类是BufferedReader和BufferedWriter。
+- 3）将字符数组包装为Reader/Writer的子类是CharArrayReader和CharArrayWriter。 
+- 4）将字符串包装为Reader/Writer的子类是StringReader和StringWriter。
+- 5）将InputStream/OutputStream转换为Reader/Writer的子类是InputStreamReader和OutputStreamWriter。
+- 6）将基本类型、对象输出为其字符串表示的子类是PrintWriter。
+
+**File**
+
+关于文件路径、文件元数据、文件目录、临时文件、访问权限管理等，Java使用File这个类来表示
+
+**NIO**
+
+nio表示New IO，NIO代表一种不同的看待IO的方式，它有缓冲区和通道的概念。利用缓冲区和通道往往可以达成和流类似的目的，不过，它们更接近操作系统的概念，某些操作的性能也更高。比如，复制文件到网络，通道可以利用操作系统和硬件提供的DMA机制（Direct Memory Access，直接内存存取），不用CPU和应用程序参与，直接将数据从硬盘复制到网卡。除了看待方式不同，NIO还支持一些比较底层的功能，如内存映射文件、文件加锁、自定义文件系统、非阻塞式IO、异步IO等。
+
+**序列化和反序列化**
+
+简单来说，序列化就是将内存中的Java对象持久保存到一个流中，反序列化就是从流中恢复Java对象到内存。序列化和反序列化主要有两个用处：一是对象状态持久化，二是网络远程调用，用于传递和返回对象。Java主要通过接口Serializable和类ObjectInputStream/ObjectOutputStream提供对序列化的支持，基本的使用是比较简单的，但也有一些复杂的地方。不过，Java的默认序列化有一些缺点，比如，序列化后的形式比较大、浪费空间，序列化/反序列化的性能也比较低，更重要的问题是，它是Java特有的技术，不能与其他语言交互。
+
+#### 二进制文件和字节流
+##### InputStream/OutputStream
+InputStream是抽象类，主要方法是abstract read()和read(byte [] b),read方法从流中读取下一个字节，返回类型为int，但取值为0～255，当读到流结尾的时候，返回值为-1，如果流中没有数据，read方法会阻塞直到数据到来、流关闭或异常出现，后者可以一次读取多个字节，读入的字节放入参数数组b中。还有OutputStream方法.
+![img_35.png](img_35.png)
+##### FileInputStream和FileOutStream
+FileOutputStream有多个构造方法,其中两个如下：
+![img_36.png](img_36.png)
+File类型的参数file和字符串的类型的参数name都表示文件路径，路径可以是绝对路径，也可以是相对路径，如果文件已存在，append参数指定是追加还是覆盖，true表示追加， false表示覆盖，第二个构造方法没有append参数，表示覆盖。new一个FileOutputStream对象会实际打开文件，操作系统会分配相关资源。如果当前用户没有写权限，会抛出异常SecurityException，它是一种RuntimeException。如果指定的文件是一个已存在的目录，或者由于其他原因不能打开文件，会抛出异常FileNotFoundException，它是IOException的一个子类。
+代码同步到demo中。
+
+
+OutputStream只能以byte或byte数组写文件，为了写字符串，我们调用String的get-Bytes方法得到它的UTF-8编码的字节数组，再调用write()方法，写的过程放在try语句内，在finally语句中调用close方法。
+
+FileInputStream类似，可以是文件路径或File对象，但必须是一个已存在的文件，不能是目录。new一个FileInputStream对象也会实际打开文件，操作系统会分配相关资源，如果文件不存在，会抛出异常FileNotFoundException，如果当前用户没有读的权限，会抛出异常SecurityException。读入到的是byte数组,在没有缓冲的情况下逐个字节读取性能很低，可以使用批量读入且确保读到结尾,不过，这还是假定文件内容长度不超过一个固定的大小1024。如果不确定文件内容的长度，但不希望一次性分配过大的byte数组，又希望将文件内容全部读入，可以借助ByteArrayOutputStream
+
+##### ByteArrayInputStream/ByteArrayOutputStream
+它们的输入源和输出目标是字节数组
+**ByteArrayOutputStream**
+
+ByteArrayOutputStream的输出目标是一个byte数组，这个数组的长度是根据数据内容动态扩展的，它有两个构造方法：
+```
+    public ByteArrayOutputStream();
+    public ByteArrayOutputStream(int size);
+```
+第二个构造方法中的size指定的就是初始的数组大小，如果没有指定，则长度为32。在调用write方法的过程中，如果数组大小不够，会进行扩展，扩展策略同样是指数扩展，每次至少增加一倍。
+
+主要方法：
+![img_37.png](img_37.png)
+
+**ByteArrayInputStream**
+ByteArrayInputStream将byte数组包装为一个输入流，是一种适配器模式，它的构造方法有：
+![img_38.png](img_38.png)
+第二个构造方法以buf中offset开始的length个字节为背后的数据。ByteArrayInput-Stream的所有数据都在内存，支持mark/reset重复读取。
+
+##### DataInputStream/DataOutputStream
+使用DataInputStream/DataOutputStream可以读写int等类型，它们都是装饰类。
+
+**DataOutputStream**
+
+DataOutputStream是装饰类基类FilterOutputStream的子类，FilterOutputStream是OutputStream的子类，它的构造方法是：
+``` 
+  public FilterOutputStream(OutputStream out);
+```
+它接受一个已有的OutputStream，基本上将所有操作都代理给了它。DataOutputStream实现了DataOutput接口，可以以各种基本类型和字符串写入数据，部分方法如下：
+![img_39.png](img_39.png)
+在写入时，DataOutputStream会将这些类型的数据转换为其对应的二进制字节，比如：
+- 1）writeBoolean：写入一个字节，如果值为true，则写入1，否则0。
+- 2）writeInt：写入4个字节，最高位字节先写入，最低位最后写入。
+- 3）writeUTF：将字符串的UTF-8编码字节写入，这个编码格式与标准的UTF-8编码略有不同。
+  
+与FilterOutputStream一样，DataOutputStream的构造方法也是接受一个已有的Output-Stream：
+
+例子，保存一个学生列表到文件中，见demo中。
+
+**DataInputStream**
+
+DataInputStream是装饰类基类FilterInputStream的子类，FilterInputStream是Input-Stream的子类。DataInputStream实现了DataInput接口，可以以各种基本类型和字符串读取数据，部分方法有：
+![img_40.png](img_40.png)
+##### BufferedInputStream/BufferedOutputStream
+FileInputStream/FileOutputStream是没有缓冲的，按单个字节读写时性能比较低，虽然可以按字节数组读取以提高性能，但有时必须要按字节读写，怎么解决这个问题呢？方法是将文件流包装到缓冲流中。BufferedInputStream内部有个字节数组作为缓冲区，读取时，先从这个缓冲区读，缓冲区读完了再调用包装的流读，它的构造方法有两个：
+``` 
+    public BufferedInputStream(InputStream input);
+    public BufferedInputStream(InputStream input, int size);
+```
+size表示缓冲区大小，如果没有，默认值为8192。除了提高性能，BufferedInputStream也支持mark/reset，可以重复读取。与BufferedInputStream类似，BufferedOutputStream的构造方法也有两个，默认的缓冲区大小也是8192，它的fush方法会将缓冲区的内容写到包装的流中。
+
+**在使用FileInputStream/FileOutputStream时，应该几乎总是在它的外面包上对应的缓冲类**，如下所示：
+![img_41.png](img_41.png)
+##### 使用方法
+Apache有一个类库Commons IO，里面提供了很多简单易用的方法，实际开发中，可以考虑使用。http://commons.apache.org/proper/commons-io/
+
+**小结**
+
+本节介绍了如何在Java中以二进制字节的方式读写文件，介绍了主要的流。
+- 1）InputStream/OutputStream：是抽象基类，有很多面向流的代码，以它们为参数。
+- 2）FileInputStream/FileOutputStream：流的源和目的地是文件。
+- 3）ByteArrayInputStream/ByteArrayOutputStream：源和目的地是字节数组，作为输入相当于适配器，作为输出封装了动态数组，便于使用。
+- 4）DataInputStream/DataOutputStream：装饰类，按基本类型和字符串读写流。
+- 5）BufferedInputStream/BufferedOutputStream：装饰类，提供缓冲，FileInputStream/FileOutputStream一般总是应该用该类装饰。
+
+#### 文本文件和字符流
+对于文本文件，字节流没有编码的概念，不能按行处理，使用不太方便，更适合的是使用字符流，Java中的主要字符流：
+- 1）Reader/Writer：字符流的基类，它们是抽象类；
+- 2）InputStreamReader/OutputStreamWriter：适配器类，将字节流转换为字符流；
+- 3）FileReader/FileWriter：输入源和输出目标是文件的字符流；
+- 4）CharArrayReader/CharArrayWriter：输入源和输出目标是char数组的字符流；
+##### Reader/Writer
+Reader与字节流的InputStream类似，也是抽象类，部分主要方法有：
+![img_42.png](img_42.png)
+方法的名称和含义与InputStream中的对应方法基本类似，但Reader中处理的单位是char，比如read读取的是一个char.
+
+Writer与字节流的OutputStream类似，也是抽象类，部分主要方法有：
+![img_43.png](img_43.png)
+##### InputStreamReader/OutputStreamWriter
+OutputStreamWriter的主要构造方法为:
+``` 
+  public OutputStreamWriter(OutputStream out);
+  puclic OutputStreamWriter(OutputStream out,String CharsetName);
+```
+一个重要的参数是编码类型，可以通过名字charsetName或Charset对象传入，如果没有传入，则为系统默认编码，默认编码可以通过Charset.defaultCharset()得到。OutputStreamWriter内部有一个类型为StreamEncoder的编码器，能将char转换为对应编码的字节。
+
+InputStreamReader的主要构造方法为:
+```  
+    public InputStreamReader(InputStream input);
+    public InputStreamReader(InputStream input, String CharsetName)
+```
+##### FileReader/FileWriter
+FileReader/FileWriter的输入和目的是文件。FileReader是InputStreamReader的子类，FileWriter是OutputStreamWriter的子类。ileReader/FileWriter不能指定编码类型，只能使用默认编码，如果需要指定编码类型，可以使用InputStreamReader/OutputStreamWriter。
+
+##### CharArrayReader/CharArrayWriter
+CharArrayWriter与ByteArrayOutputStream类似，它的输出目标是char数组，这个数组的长度可以根据数据内容动态扩展。CharArrayWriter有如下方法，可以方便地将数据转换为char数组或字符串：
+``` 
+  public char [] toCharArray()
+  public String toString()
+```
+
+读入的数据先写入CharArrayWriter中，读完后，再调用其toString()方法获取完整数据。
+##### BufferedReader/BufferedWriter
+BufferedReader/BufferedWriter是装饰类，提供缓冲，以及按行读写功能。构造方法有：
+``` 
+  public BufferedWriter(Writer out)
+  public BufferedWriter(Writer out,int size)
+```
+参数sz是缓冲大小，如果没有提供，默认为8192。
+
+BufferedReader的构造方法有：
+
+```  
+   public BufferedReader(Reader in)
+   public BudderedReader(Reader in, int size)
+```
+参数sz是缓冲大小，如果没有提供，默认为8192。它有如下方法，可以读入一行：
+``` 
+  public String readLine() throws IOException()
+```
+
+FileReader/FileWriter是没有缓冲的，也不能按行读写，所以，一般应该在它们的外面包上对应的缓冲类
+##### PrintWriter
+PrintWriter有很多重载的print方法，如：
+``` 
+  public void print(Object o)
+  public void print(int i )
+```
+它会将这些参数转换为其字符串形式，即调用String.valueOf()，然后再调用write。
+
+PrintWriter的方便之处在于，它有很多构造方法，可以接受文件路径名、文件对象、OutputStream、Writer等，对于文件路径名和File对象，还可以接受编码类型作为参数，比如：
+![img_44.png](img_44.png)
+对于以OutputStream为参数的构造方法，PrintWriter也会构造一个BufferedWriter。对于以Writer为参数的构造方法，PrintWriter就不会包装BufferedWriter了。
+##### Scanner
+Scanner是一个单独的类，它是一个简单的文本扫描器，能够分析基本类型和字符串，它需要一个分隔符来将不同数据区分开来，默认是使用空白符，可以通过useDelimiter()方法进行指定。Scanner有很多形式的next()方法，可以读取下一个基本类型或行。
+
+Scanner也有很多构造方法，可以接受File对象、InputStream、Reader作为参数，它也可以将字符串作为参数，这时，它会创建一个StringReader。
+##### 标准流
+使用System.out向屏幕上输出，它是一个PrintStream对象，输出目标就是所谓的“标准”输出，经常是屏幕。除了System.out, Java中还有两个标准流：System. in和System.err。System.in表示标准输入，它是一个InputStream对象，输入源经常是键盘。比如，从键盘接受一个整数并输出。System.err表示标准错误流，一般异常和错误信息输出到这个流，它也是一个Print-Stream对象，输出目标默认与System.out一样，一般也是屏幕。
+
+##### 小结
+写文件时，可以优先考虑PrintWriter，因为它使用方便，支持自动缓冲、指定编码类型、类型转换等。读文件时，如果需要指定编码类型，需要使用InputStreamReader；如果不需要指定编码类型，可使用FileReader，但都应该考虑在外面包上缓冲类BufferedReader。
+#### 文件和目录操作
+##### 构造方法
+File既可以表示文件，也可以表示目录，它的主要构造方法有：
+``` 
+  //pathname表示完整路径，该路径可以是相对路径，也可以是绝对路径
+  public File(String pathname)
+  //parent表示父目录，child表示孩子
+  public File(String parent,String child)
+  public File(File parent, Fild child)
+```
+File中的路径可以是已经存在的，也可以是不存在的。**通过new新建一个File对象，不会实际创建一个文件，只是创建一个表示文件或目录的对象**，new之后，File对象中的路径是不可变的。
+
+##### 文件元数据
+文件元数据主要包括文件名和路径、文件基本信息以及一些安全和权限相关的信息。
+
+各种API。不放了。主要是文件名和路径相关的主要方法，除了文件名和路径，File对象还有如下方法，获取文件或目录的基本信息，与安全和权限相关的方法、
+
+##### 文件操作
+文件操作主要有创建、删除、重命名。
+#### 目录操作
+当File对象代表目录时，可以执行目录相关的操作，如创建、遍历。
+
