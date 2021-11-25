@@ -1306,4 +1306,123 @@ interrupt()对线程的影响与线程的状态和在进行的IO操作有关：
 
 ##### 如何正确地取消/关闭线程
 interrupt方法不一定会真正“中断”线程，它只是一种协作机制，如果不明白线程在做什么，不应该贸然地调用线程的interrupt方法，以为这样就能取消线程。对于以线程提供服务的程序模块而言，它应该封装取消/关闭操作，提供单独的取消/关闭方法给调用者，外部调用者应该调用这些方法而不是直接调用interrupt。Java并发库的一些代码就提供了单独的取消/关闭方法，比如，Future接口提供了cancel方法以取消任务。ExecutorService提供了shutdown和shutdownNow。
+### 并发包的基石
+#### 原子变量和CAS
+对于count++这种操作来说，使用synchronized成本太高了，需要先获取锁，最后需要释放锁，获取不到锁的情况下需要等待，还会有线程的上下文切换，这些都需要成本。对于这种情况，完全可以使用原子变量代替，Java并发包中的基本原子变量类型有以下几种。
+- AtomicBoolean：原子Boolean类型，常用来在程序中表示一个标志位。
+- AtomicInteger：原子Integer类型。
+- AtomicLong：原子Long类型，常用来在程序中生成唯一序列号。
+- AtomicReference：原子引用类型，用来以原子方式更新复杂类型。
+
+##### AtomicInteger
+**基本用法**
+
+AtomicInteger有两个构造函数：
+``` 
+    public AtomicInteger(int initialValue)
+    public AtomicInteger()
+```
+第一个构造方法给定了一个初始值，第二方法的初始值为0。可以直接获取或设置AtomicInger：
+``` 
+    public final int get()
+    public final void set(int newValue)
+```
+之所以称为原子变量，是因为包含一些以原子方式实现组合操作的方法，部分如下：
+![img_46.png](img_46.png)
+
+compareAndSet是一个非常重要的方法，比较并设置，简称为CAS。该方法有两个参数expect和update，以原子方式实现了如下功能：如果当前值等于expect，则更新为update，否则不更新，如果更新成功，返回true，否则返回false。
+
+**基本原理和思维**
+
+AtomicInteger的内部主要是int变量，**用volatile修饰以保证可见性**，大部分更新方法都类似，incrementAndGet，其代码为：
+![img_47.png](img_47.png)
+
+代码主体是个死循环，先获取当前值current，计算期望的值next，然后调用CAS方法进行更新，如果更新没有成功，说明value被别的线程改了，则再去取最新值并尝试更新直到成功为止。
+
+与synchronized锁相比，这种原子更新方式代表一种不同的思维方式。synchronized是悲观的，它假定更新很可能冲突，所以先获取锁，得到锁后才更新。原子变量的更新逻辑是乐观的，它假定冲突比较少，但使用CAS更新，也就是进行冲突检测，如果确实冲突了，那也没关系，继续尝试就好了。synchronized代表一种阻塞式算法，得不到锁的时候，进入锁等待队列，等待其他线程唤醒，有上下文切换开销。原子变量的更新逻辑是非阻塞式的，更新冲突的时候，它就重试，不会阻塞，不会有上下文切换开销。对于大部分比较简单的操作，无论是在低并发还是高并发情况下，这种乐观非阻塞方式的性能都远高于悲观阻塞式方式。
+
+
+![img_48.png](img_48.png)
+
+##### ABA问题
+使用CAS方式更新有一个ABA问题。该问题是指，假设当前值为A，如果另一个线程先将A修改成B，再修改回成A，当前线程的CAS操作无法分辨当前值发生过变化。ABA是不是一个问题与程序的逻辑有关，一般不是问题。而如果确实有问题，解决方法是使用AtomicStampedReference，在修改值的同时附加一个时间戳，只有值和时间戳都相同才进行修改，AtomicStampedReference在compareAndSet中要同时修改两个值：一个是引用，另一个是时间戳。内部AtomicStampedReference会将两个值组合为一个对象，修改的是一个值，AtomicStampedReference将对引用值和时间戳的组合比较和修改转换为了对内部类Pair单个值的比较和修改。
+
+#### 显式锁
+Java并发包中的显式锁，可以解决synchronized的限制。Java并发包中的显式锁接口和类位于包java.util.concurrent.locks下，主要接口和类有：
+- 锁接口Lock，主要实现类是ReentrantLock；
+- 读写锁接口ReadWriteLock，主要实现类是ReentrantReadWriteLock。
+
+##### 接口Lock
+显式锁接口Lock的定义为：
+![img_49.png](img_49.png)
+- 1）lock()/unlock()：就是普通的获取锁和释放锁方法，lock()会阻塞直到成功。
+- 2）lockInterruptibly()：与lock()的不同是，它可以响应中断，如果被其他线程中断了，则抛出InterruptedException。
+- 3）tryLock()：只是尝试获取锁，立即返回，不阻塞，如果获取成功，返回true，否则返回false。
+- 4）tryLock(long time, TimeUnit unit)：先尝试获取锁，如果能成功则立即返回true，否则阻塞等待，但等待的最长时间由指定的参数设置，在等待的同时响应中断，如果发生了中断，抛出InterruptedException，如果在等待的时间内获得了锁，返回true，否则返回false。
+- 5）newCondition：新建一个条件，一个Lock可以关联多个条件。
+  
+可以看出，相比synchronized，显式锁支持以非阻塞方式获取锁、可以响应中断、可以限时，这使得它灵活得多。
+
+##### 可重入锁ReentrantLock
+**基本用法**
+
+Lock接口的主要实现类是ReentrantLock，它的基本用法lock/unlock实现了与synchronized一样的语义。ReentrantLock有两个构造方法:
+``` 
+    public ReentrantLock()
+    public ReentrantLock(Boolean fair)
+```
+参数fair表示是否保证公平，不指定的情况下，默认为false，表示不保证公平。所谓公平是指，等待时间最长的线程优先获得锁。保证公平会影响性能，一般也不需要，所以默认不保证，synchronized锁也是不保证公平的。
+
+使用显式锁，一定要记得调用unlock。**一般而言，应该将lock之后的代码包装到try语句内，在finally语句内释放锁**。比如，使用ReentrantLock实现Counter，代码已同步到src/com.demo.concurrency的CounterDemo中。
+
+##### 使用tryLock避免死锁
+使用tryLock()，可以避免死锁。在持有一个锁获取另一个锁而获取不到的时候，可以释放已持有的锁，给其他线程获取锁的机会，然后重试获取所有锁。
+##### ReentrantLock
+ReentrantLock底层依赖于CAS方法，以及类LockSupport中的一些方法。
+
+**LockSupport**
+
+静态方法park()使得当前线程放弃CPU，进入等待状态（WAITING），操作系统不再对它进行调度，静态方法unpark(Thread thread)使参数指定的线程恢复可运行状态。
+
+park不同于Thread.yield(), yield只是告诉操作系统可以先让其他线程运行，但自己依然是可运行状态，而park会放弃调度资格，使线程进入WAITING状态。需要说明的是，park是响应中断的，当有中断发生时，park会返回，线程的中断状态会被设置.
+
+park有两个变体：parkNanos：可以指定等待的最长时间，参数是相对于当前时间的纳秒数；parkUntil：可以指定最长等到什么时候，参数是绝对时间，是相对于纪元时的毫秒数。当等待超时的时候，它们也会返回。
+
+**AQS**
+
+但Java中还有很多其他并发工具，如ReentrantReadWriteLock、Semaphore、CountDownLatch，它们的实现有很多类似的地方，为了复用代码，Java提供了一个抽象类AbstractQueuedSynchronizer，简称AQS，它简化了并发工具的实现。
+
+AQS封装了一个state变量，给子类提供了查询和设置状态的方法。AQS内部维护了一个等待队列，借助CAS方法实现了无阻塞算法进行更新。
+
+**ReentrantLock**
+
+ReentrantLock内部使用AQS，有三个内部类：Sync是抽象类，NonfairSync是fair为false时使用的类，FairSync是fire为true时使用的类。ReentrantLock内部有一个Sync成员。
+
+然后就是以前整理的ReentrantLock的实现原理：acquire(1)、tryAcquire、addWaiter、acquireQueued等。
+
+保证公平整体性能比较低，低的原因不是这个检查慢，而是会让活跃线程得不到锁，进入等待状态，引起频繁上下文切换，降低了整体的效率，通常情况下，谁先运行关系不大，而且长时间运行，从统计角度而言，虽然不保证公平，也基本是公平的。需要说明是，即使fair参数为true， ReentrantLock中不带参数的tryLock方法也是不保证公平的，它不会检查是否有其他等待时间更长的线程。
+
+##### 对比ReentrantLock和synchronized
+相比synchronized, ReentrantLock可以实现与synchronized相同的语义，而且支持以非阻塞方式获取锁，可以响应中断，可以限时，更为灵活。不过，synchronized的使用更为简单，写的代码更少，也更不容易出错。synchronized代表一种声明式编程思维，程序员更多的是表达一种同步声明，由Java系统负责具体实现，程序员不知道其实现细节；显式锁代表一种命令式编程思维，程序员实现所有细节。声明式编程的好处除了简单，还在于性能，在较新版本的JVM上，ReentrantLock和synchronized的性能是接近的，但Java编译器和虚拟机可以不断优化synchronized的实现，比如自动分析synchronized的使用，对于没有锁竞争的场景，自动省略对锁获取/释放的调用。
+
+简单总结下，**能用synchronized就用synchronized，不满足要求时再考虑ReentrantLock。**
+
+#### 显式条件
+显式条件在不同上下文中也可以被称为条件变量、条件队列、或条件。
+##### 用法
+锁用于解决竞态条件问题，条件是线程间的协作机制。显式锁与synchronized相对应，而显式条件与wait/notify相对应。**wait/notify与synchronized配合使用，显式条件与显式锁配合使用**。条件与锁相关联，创建条件变量需要通过显式锁，Lock接口定义了创建方法：
+``` 
+    Condition newCondition();
+```
+Condition表示条件变量，是一个接口.它的await对应于Object的wait, signal对应于notify, signalAll对应于notifyAll，语义也是一样的。与Object的wait方法类似，await也有几个限定等待时间的方法，但功能更多一些：
+![img_51.png](img_51.png)
+await在进入等待队列后，会释放锁，释放CPU，当其他线程将它唤醒后，或等待超时后，或发生中断异常后，它都需要重新获取锁，获取锁后，才会从await方法中退出。另外，与Object的wait方法一样，await返回后，不代表其等待的条件就一定满足了，通常要将await的调用放到一个循环内，只有条件满足后才退出。signal/signalAll与notify/notifyAll一样，调用它们需要先获取锁。线程被唤醒后都需要重新竞争锁，获取锁后才会从await调用中返回。
+
+##### 生产者/消费者模式
+用wait/notify实现生产者/消费者模式的一个局限是，它只能有一个条件等待队列，分析等待条件也很复杂。在生产者/消费者模式中，其实有两个条件，一个与队列满有关，一个与队列空有关。使用显式锁，可以创建多个条件等待队列。下面，我们用显式锁/条件重新实现下其中的阻塞队列，如src/com.demo.concurrency下的ProducerAndConsumer.java所示。
+
+##### 实现原理
+ConditionObject是AQS的成员内部类，它可以直接访问AQS中的数据，比如AQS中定义的锁等待队列，主要通过条件等待队列实现的、
+
+
 
