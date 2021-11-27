@@ -1424,5 +1424,281 @@ await在进入等待队列后，会释放锁，释放CPU，当其他线程将它
 ##### 实现原理
 ConditionObject是AQS的成员内部类，它可以直接访问AQS中的数据，比如AQS中定义的锁等待队列，主要通过条件等待队列实现的、
 
+### 并发容器
+#### 写时复制的List和Set
+##### CopyOnWriteArrayList
+CopyOnWriteArrayList实现了List接口，它的用法与其他List（如ArrayList）基本是一样的，他的特点如下：
+- 它是线程安全的，可以被多个线程并发访问。
+- 迭代时不需要加锁，它的迭代器不支持修改操作，但也不会抛出ConcurrentModificationException。
+- 它直接支持两个原子方法：addIfAbsent和addAllAbsent，只有不存在时才添加。
+
+CopyOnWriteArrayList的内部也是一个数组，每次修改操作，都会新建一个数组，复制原数组的内容到新数组，在新数组上进行需要的修改，然后以原子方式设置内部的数组引用，这就是写时复制。
+
+所有的读操作，都是先拿到当前引用的数组，然后直接访问该数组。在读的过程中，可能内部的数组引用已经被修改了，但不会影响读操作，它依旧访问原数组内容。换句话说，数组内容是只读的，写操作都是通过新建数组，然后原子性地修改数组引用来实现的。
+
+内部数组声明为：
+``` 
+    private volatile transient Object [] array;
+```
+它声明为了volatile，这是必需的，以保证内存可见性，即保证在写操作更改之后读操作能看到。getArray()和setArray(Object [] a)用来访问/设置该数组。
+
+在CopyOnWriteArrayList中，读不需要锁，可以并行，读和写也可以并行，但多个线程不能同时写，每个写操作都需要先获取锁。CopyOnWriteArrayList内部使用ReentrantLock。默认构造方法就是通过setArray(new Object[0])设置了一个空数组。
+
+add方法是修改操作，整个过程需要被锁保护(调用lock.lock())，先通过getArray()获取当前数组elements，然后复制出一个长度加1的新数组newElements，在新数组中添加元素，最后调用setArray原子性地修改内部数组引用。
+
+每次修改都要创建一个新数组，然后复制所有内容，**CopyOnWriteArrayList不适用于数组很大且修改频繁的场景。它是以优化读操作为目标的**，读不需要同步，性能很高，但在优化读的同时牺牲了写的性能。
+
+**保证线程安全的两种思路：一种是锁，使用synchronized或ReentrantLock；另外一种是循环CAS，写时复制体现了保证线程安全的另一种思路。锁和循环CAS都是控制对同一个资源的访问冲突，而写时复制通过复制资源减少冲突**。对于绝大部分访问都是读，且有大量并发线程要求读，只有个别线程进行写，且只是偶尔写的场合，写时复制就是一种很好的解决方案。**写时复制是一种重要的思维，用于各种计算机程序中，比如操作系统内部的进程管理和内存管理**。在进程管理中，子进程经常共享父进程的资源，只有在写时才复制。在内存管理中，当多个程序同时访问同一个文件时，操作系统在内存中可能只会加载一份，只有程序要写时才会复制，分配自己的内存，复制可能也不会全部，复制可能也不会全部复制，只会复制写的位置所在的.
+
+##### CopyOnWriteArraySet
+CopyOnWriteArraySet实现了Set接口，不包含重复元素，使用比较简单，CopyOnWriteArraySet内部是通过CopyOnWriteArrayList实现的，其成员声明为：
+```
+    private final CopyOnWriteArrayList<E> al;
+```
+在构造方法中被初始化，如：
+```
+    public CopyOnWriteArraySet(){
+        al = new CopyOnWriteArrayList<E>();
+    }
+```
+add方法就是调用了CopyOnWriteArrayList的addIfAbsent方法。contains方法就调用了CopyOnWriteArrayList的contains方法。
+
+由于CopyOnWriteArraySet是基于CopyOnWriteArrayList实现的，所以与之前介绍过的Set的实现类如HashSet/TreeSet相比，它的性能比较低，不适用于元素个数特别多的集合。如果元素个数比较多，可以考虑ConcurrentHashMap或ConcurrentSkipListSet这两个类。
+
+**CopyOnWriteArrayList和CopyOnWriteArraySet适用于读远多于写、集合不太大的场合，它们采用了写时复制，这是计算机程序中一种重要的思维和技术。**
+
+#### ConcurrentHashMap
+ConcurrentHashMap是HashMap的并发版本，与HashMap相比，它有如下特点：
+- 并发安全；
+- 直接支持一些原子复合操作；
+- 支持高并发，读操作完全并行，写操作支持一定程度的并行；
+- 与同步容器Collections.synchronizedMap相比，迭代不用加锁，不会抛出ConcurrentModificationException；
+- 弱一致性。
+
+##### 并发安全
+无论是Java 7还是Java 8环境，HashMap都会出现死循环，占满CPU。使用Collections.synchronizedMap方法可以生成一个同步容器，以避免产生死循环，代码如下：
+``` 
+    final Map<Integer,Integer> map = Collections.synchronizedMap(new HashMap<Integer, Integer>));
+```
+但同步容器有几个问题：
+- 每个方法都需要同步，支持的并发度比较低
+- 对于迭代和复合操作，需要调用方加锁，使用比较麻烦，且容易忘记
+
+ConcurrentHashMap没有这些问题，它同样实现了Map接口，也是基于哈希表实现的，使用也比较简单：
+```
+    final Map<Integer, Integer> map = new ConcurrentHashMap<>();
+```
+##### 原子复合操作
+除了Map接口，ConcurrentHashMap还实现了一个接口ConcurrentMap，接口定义了一些条件更新操作，Java 7中的具体定义为：
+![img_52.png](img_52.png)
+Java 8增加了几个默认方法，包括getOrDefault、forEach、computeIfAbsent、merge等。
+##### 高并发的基本机制
+Java 7采用分段锁技术，将数据分为多个段，而每个段有一个独立的锁，每一个段相当于一个独立的哈希表，分段的依据也是哈希值，无论是保存键值对还是根据键查找，都先根据键的哈希值映射到段，再在段对应的哈希表上进行操作。采用分段锁，可以大大提高并发度，多个段之间可以并行读写。默认情况下，段是16个。
+
+Java 8对ConcurrentHashMap的实现进一步做了优化。首先，与HashMap的改进类似，在哈希冲突比较严重的时候，会将单向链表转化为平衡的排序二叉树，提高查找的效率；其次，锁的粒度进一步细化了，以提高并行性，哈希表数组中的每个位置（指向一个单链表或树）都有一个单独的锁。
+
+##### 迭代安全
+ConcurrentHashMap在迭代器创建后，在迭代过程中，如果另一个线程对容器进行了修改，迭代会继续，不会抛出异常。
+##### 弱一致性
+ConcurrentHashMap的迭代器创建后，就会按照哈希表结构遍历每个元素，但在遍历过程中，内部元素可能会发生变化，如果变化发生在已遍历过的部分，迭代器就不会反映出来，而如果变化发生在未遍历过的部分，迭代器就会发现并反映出来，这就是弱一致性。
+
+#### 基于跳表的Map和Set
+Java并发包中与TreeMap/TreeSet对应的并发版本是ConcurrentSkipListMap和ConcurrentSkipListSet
+
+##### 基本概念
+ConcurrentSkipListMap是基于SkipList实现的，SkipList称为跳跃表或跳表，是一种数据结构。并发版本采用跳表因为跳表更易于实现高效并发算法。ConcurrentSkipListMap有如下特点。
+- 1）没有使用锁，所有操作都是无阻塞的，所有操作都可以并行，包括写，多线程可以同时写。
+- 2）与ConcurrentHashMap类似，迭代器不会抛出ConcurrentModificationException，是弱一致的，迭代可能反映最新修改也可能不反映，一些方法如putAll、clear不是原子的。
+- 3）与ConcurrentHashMap类似，同样实现了ConcurrentMap接口，支持一些原子复合操作。
+- 4）与TreeMap一样，可排序，默认按键的自然顺序，也可以传递比较器自定义排序，实现了SortedMap和NavigableMap接口。
+
+##### 跳表的原理
+![img_53.png](img_53.png)
+查找元素总是从最高层开始，将待查值与下一个索引节点的值进行比较，如果大于索引节点，就向右移动，继续比较，如果小于索引节点，则向下移动到下一层进行比较，这个结构是有序的，查找的性能与二叉树类似，复杂度是O(log(N))。
+#### 并发队列
+Java并发包提供了丰富的队列类，可以简单分为以下几种。
+- 无锁非阻塞并发队列：ConcurrentLinkedQueue和ConcurrentLinkedDeque。
+- 普通阻塞队列：基于数组的ArrayBlockingQueue，基于链表的LinkedBlockingQueue和LinkedBlockingDeque。
+- 优先级阻塞队列：PriorityBlockingQueue。
+- 延时阻塞队列：DelayQueue。
+- 其他阻塞队列：SynchronousQueue和LinkedTransferQueue。
+  
+无锁非阻塞是指，这些队列不使用锁，所有操作总是可以立即执行，主要通过循环CAS实现并发安全。阻塞队列是指，这些队列使用锁和条件，很多操作都需要先获取锁或满足特定条件，获取不到锁或等待条件时，会等待（即阻塞），获取到锁或条件满足再返回。
+##### 无锁非阻塞并发队列
+两个无锁非阻塞队列：ConcurrentLinkedQueue和ConcurrentLinkedDeque，它们适用于多个线程并发使用一个队列的场合，都是基于链表实现的，都没有限制大小，是无界的，与ConcurrentSkipListMap类似，它们的size方法不是一个常量运算，不过这个方法在并发应用中用处也不大。
+
+ConcurrentLinkedQueue实现了Queue接口，表示一个先进先出的队列，从尾部入队，从头部出队，内部是一个单向链表。ConcurrentLinkedDeque实现了Deque接口，表示一个双端队列，在两端都可以入队和出队，内部是一个双向链表。它们的用法类似于LinkedList。
+
+这两个类最基础的原理是循环CAS, ConcurrentLinkedQueue的算法基于一篇论文《Simple, Fast, and Practical Non-Blocking and Blocking Concurrent QueueAlgorithm》
+##### 普通阻塞队列
+除了上面的两个队列，其他队列都是阻塞队列，都实现了接口BlockingQueue，在入队/出队时可能等待，主要方法有：
+
+![img_54.png](img_54.png)
+普通阻塞队列是常用的队列，常用于生产者/消费者模式。ArrayBlockingQueue和LinkedBlockingQueue都实现了Queue接口，表示先进先出的队列，尾部进，头部出，而LinkedBlockingDeque实现了Deque接口，是一个双端队列。
+
+ArrayBlockingQueue是基于循环数组实现的，有界，创建时需要指定大小，且在运行过程中不会改变，ArrayDeque也是基于循环数组实现的，但是是无界的，会自动扩展。
+
+LinkedBlockingQueue是基于单向链表实现的，在创建时可以指定最大长度，也可以不指定，默认是无限的，节点都是动态创建的。
+
+LinkedBlockingDeque与LinkedBlockingQueue一样，最大长度也是在创建时可选的，默认无限，不过，它是基于双向链表实现的。内部，它们都是使用显式锁ReentrantLock和显式条件Condition实现的。
+
+ArrayBlockingQueue的实现很直接，有一个数组存储元素，有两个索引表示头和尾，有一个变量表示当前元素个数，有一个锁保护所有访问，有“不满”和“不空”两个条件用于协作。与ArrayBlockingQueue类似，LinkedBlockingDeque也是使用一个锁和两个条件，使用锁保护所有操作，使用“不满”和“不空”两个条件。LinkedBlockingQueue稍微不同，因为它使用链表，且只从头部出队、从尾部入队，它做了一些优化，使用了两个锁，一个保护头部，一个保护尾部，每个锁关联一个条件。
+
+##### 优先级阻塞队列
+PriorityBlockingQueue是PriorityQueue的并发版本，与PriorityQueue一样，它没有大小限制，是无界的，内部的数组大小会动态扩展，要求元素要么实现Comparable接口，要么创建PriorityBlockingQueue时提供一个Comparator对象。与PriorityQueue的区别是，PriorityBlockingQueue实现了BlockingQueue接口，在队列为空时，take方法会阻塞等待。另外，PriorityBlockingQueue是线程安全的，它的基本实现原理与PriorityQueue是一样的，也是基于堆，但它使用了一个锁ReentrantLock保护所有访问，使用了一个条件协调阻塞等待。
+
+##### 延时阻塞队列
+延时阻塞队列DelayQueue是一种特殊的优先级队列，它是无界的。它要求每个元素都实现Delayed接口。
+
+**在实际开发中，应该尽量使用现成的容器，而非“重新发明轮子”。**
+
+### 异步任务执行服务
+#### 基本概念和原理
+##### 基本接口
+任务执行服务涉及的基本接口：
+- Runnable和Callable：表示要执行的异步任务。
+- Executor和ExecutorService：表示执行服务。
+- Future：表示异步任务的结果。
+
+Runnable和Callable都表示任务，Runnable没有返回结果，而Callable有，Runnable不会抛出异常，而Callable会。
+
+Executor表示最简单的执行服务，其定义为：
+```
+    public interface Executor{
+        void execute(Runnable command);
+    }
+```
+就是可以执行一个Runnable，没有返回结果。
+
+ExecutorService扩展了Executor，定义了更多服务，基本方法有：
+![img_55.png](img_55.png)
+这三个submit都表示提交一个任务，返回值类型都是Future，返回后，只是表示任务已提交，不代表已执行，通过Future可以查询异步任务的状态、获取最终结果、取消任务等。对于Callable，任务最终有个返回值，而对于Runnable是没有返回值的；第二个提交Runnable的方法可以同时提供一个结果，在异步任务结束时返回；第三个方法异步任务的最终返回值为null。
+
+Future接口提供了以下几个方法：
+- get()用于返回异步任务最终的结果，如果任务还未执行完成，会阻塞等待，另一个get(long timeout,TimeUnit unit)方法可以限定阻塞等待的时间，如果超时任务还未结束，会抛出TimeoutException。
+- cancel(Boolean mayInterruptIfRunning)用于取消异步任务，如果任务已完成、或已经取消、或由于某种原因不能取消， 
+  cancel返回false，否则返回true。如果任务还未开始，则不再运行。但如果任务已经在运行，则不一定能取消，参数mayInterruptIfRunning表示，如果任务正在执行，是否调用interrupt方法中断线程，如果为false就不会，如果为true，就会尝试中断线程，但中断不一定能取消线程。
+- isCancelled()表示任务是否被取消，只要cancel方法返回了true，随后的isCancelled方法都会返回true，即使执行任务的线程还未真正结束。
+- isDone表示任务是否结束，不管什么原因都算。
+
+get方法，任务最终大概有三种结果：
+- 1）正常完成，get方法会返回其执行结果，如果任务是Runnable且没有提供结果，返回null。
+- 2）任务执行抛出了异常，将异常包装为ExecutionException重新抛出 
+- 3）任务被取消了，get方法会抛出异常CancellationException。
+
+**Future是一个重要的概念，是实现“任务的提交”与“任务的执行”相分离的关键，是其中的“纽带”，任务提交者和任务执行服务通过它隔离各自的关注点，同时进行协作。**
+##### 基本用法
+一个简单的异步任务例子，在src/com.demo.concurrency下的FutureBasicDemo：使用工厂类Executors创建一个任务执行服务ExecutorService，通过submit提交一个任务(Runnable的实现类)并将调用赋值给一个Future对象，可以继续执行其他事情，随后可以通过Future获取最终结果或处理任务执行的异常。
+
+ExecutorService还有如下方法：
+- 两个关闭方法：shutdown和shutdownNow。区别是，shutdown表示不再接受新任务，但已提交的任务会继续执行，即使任务还未开始执行；shutdownNow不仅不接受新任务，而且会终止已提交但尚未执行的任务，对于正在执行的任务，一般会调用线程的interrupt方法尝试中断，不过，线程可能不响应中断，shutdownNow会返回已提交但尚未执行的任务列表。
+- shutdown和shutdownNow不会阻塞等待，它们返回后不代表所有任务都已结束，不过isShutdown方法会返回true。
+- 调用者可以通过awaitTermination等待所有任务结束，它可以限定等待的时间，如果超时前所有任务都结束了，即isTerminated方法返回true，则返回true，否则返回false。
+- 批量提交任务的方法：invokeAll和invokeAny，它们都有两个版本，其中一个限定等待时间。invokeAll等待所有任务完成，返回的Future列表中，每个Future的isDone方法都返回true，不过isDone为true不代表任务就执行成功了，可能是被取消了。invokeAll可以指定等待时间，如果超时后有的任务没完成，就会被取消。而对于invokeAny，只要有一个任务在限时内成功返回了，它就会返回该任务的结果，其他任务会被取消；如果没有任务能在限时内成功返回，抛出TimeoutException；如果限时内所有任务都结束了，但都发生了异常，抛出ExecutionException。
+
+##### 基本实现原理
+ExecutorService最基本的方法是submit，它调用newTaskFor(Callable<T> task)生成了一个RunnableFuture, RunnableFuture是一个接口，既扩展了Runnable，又扩展了Future，没有定义新方法，作为Runnable，它表示要执行的任务，传递给execute方法进行执行，作为Future，它又表示任务执行的异步结果.
+
+newTaskFor就是创建了一个FutureTask对象，FutureTask实现了RunnableFuture接口:FutureTask的构造方法会初始化callable和状态，如果FutureTask接受的是一个Runnable对象，它会调用Executors.callable转换为Callable对象.任务执行服务会使用一个线程执行FutureTask的run方法。 其基本逻辑是： 
+- 1）调用callable的call方法，捕获任何异常；
+- 2）如果正常执行完成，调用set设置结果，保存到执行结果的变量outcome；
+- 3）如果执行过程发生异常，调用setException设置异常，异常也是保存到outcome，但状态不一样；
+- 4）set和setException除了设置结果、修改状态外，还会调用finishCompletion，它会唤醒所有等待结果的线程。
+  
+对于任务提交者，它通过get方法获取结果。
+#### 线程池
+线程池里面有若干线程，它们的目的就是执行提交给线程池的任务，执行完一个任务后不会退出，而是继续等待或执行新任务。线程池主要由两个概念组成：一个是任务队列；另一个是工作者线程。工作者线程主体就是一个循环，循环从队列中接受任务并执行，任务队列保存待执行的任务。
+
+Java并发包中线程池的实现类是ThreadPoolExecutor，它继承自AbstractExecutorService，实现了ExecutorService。ThreadPoolExecutor有一些重要的参数，理解这些参数对于合理使用线程池非常重要.
+##### 理解线程池
+ThreadPoolExecutor有多个构造方法，都需要一些参数，主要参数有： 参数corePoolSize、maximumPoolSize、keepAliveTime、unit用于控制线程池中线程的个数，workQueue表示任务队列，threadFactory用于对创建的线程进行一些配置，handler表示任务拒绝策略
+**线程池大小**
+
+线程池的大小主要与4个参数有关：
+- corePoolSize：表示线程池中的核心线程个数，不过，并不是一开始就创建这么多线程，刚创建一个线程池后，实际上并不会创建任何线程。
+- maximumPoolSize：表示线程池中的最多线程数，线程的个数会动态变化，但这是最大值，不管有多少任务，都不会创建比这个值大的线程个数。
+- keepAliveTime和unit：当线程池中的线程个数大于corePoolSize时额外空闲线程的存活时间。一个非核心线程，在空闲等待新任务时，会有一个最长等待时间，即keepAliveTime，如果到了时间还是没有新任务，就会被终止。如果该值为0，则表示所有线程都不会超时终止。
+
+有新任务到来的时候，如果当前线程个数小于corePoolSize，就会创建一个新线程来执行该任务，**即使其他线程现在也是空闲的，也会创建新线程**。如果线程个数大于等于corePoolSize，它会先尝试排队，如果队列满了或其他原因不能立即入队，它就不会排队，而是检查线程个数是否达到了maximumPoolSize，如果没有，就会继续创建线程，直到线程数达到maximumPoolSize。
+
+**队列**
+
+ThreadPoolExecutor要求的队列类型是阻塞队列BlockingQueue，比如：
+- LinkedBlockingQueue：基于链表的阻塞队列，可以指定最大长度，但默认是无界的。
+- ArrayBlockingQueue：基于数组的有界阻塞队列。
+- PriorityBlockingQueue：基于堆的无界阻塞优先级队列。
+- SynchronousQueue：没有实际存储空间的同步阻塞队列。
+  
+如果用的是无界队列，需要强调的是，线程个数最多只能达到corePoolSize，到达corePoolSize后，新的任务总会排队，参数maximumPoolSize也就没有意义了。
+
+**任务拒绝策略**
+
+如果队列有界，且maximumPoolSize有限，则当队列排满，线程个数也达到了maximumPoolSize，这时新任务来了，会触发线程池的任务拒绝策略。默认情况下，提交任务的方法（如execute/submit/invokeAll等）会抛出异常，类型为RejectedExecutionException。不过，拒绝策略是可以自定义的，ThreadPoolExecutor实现了4种处理方式：
+- 1）ThreadPoolExecutor.AbortPolicy：这就是默认的方式，抛出异常。
+- 2）ThreadPoolExecutor.DiscardPolicy：忽略新任务，不抛出异常，也不执行。
+- 3）ThreadPoolExecutor.DiscardOldestPolicy：将等待时间最长的任务扔掉，然后自己排队。
+- 4）ThreadPoolExecutor.CallerRunsPolicy：在任务提交者线程中执行任务，而不是交给线程池中的线程执行。
+
+拒绝策略只有在队列有界，且maximumPoolSize有限的情况下才会触发。如果队列无界，服务不了的任务总是会排队，但这不一定是期望的结果，因为请求处理队列可能会消耗非常大的内存，甚至引发内存不够的异常。如果队列有界但maximumPoolSize无限，可能会创建过多的线程，占满CPU和内存，使得任何任务都难以完成。所以，**在任务量非常大的场景中，让拒绝策略有机会执行是保证系统稳定运行很重要的方面。**
+
+**线程工厂**
+
+线程池还可以接受一个参数：ThreadFactory。它是一个接口,根据Runnable创建一个Thread, ThreadPoolExecutor的默认实现是Executors类中的静态内部类DefaultThreadFactory，主要就是创建一个线程，给线程设置一个名称，设置daemon属性为false，设置线程优先级为标准默认优先级，线程名称的格式为：pool-<线程池编号>-thread-<线程编号>。如果需要自定义一些线程的属性，比如名称，可以实现自定义的ThreadFactory。
+
+##### 工厂类Executors
+类Executors提供了一些静态工厂方法，可以方便地创建一些预配置的线程池，主要方法有：
+![img_56.png](img_56.png)
+newSingleThreadExecutor只使用一个线程，使用无界队列LinkedBlockingQueue，线程创建后不会超时终止，该线程顺序执行所有任务。该线程池适用于需要确保所有任务被顺序执行的场合。**该线程池适用于需要确保所有任务被顺序执行的场合。**
+
+newFixedThreadPool使用固定数目的n个线程，使用无界队列LinkedBlockingQueue，线程创建后不会超时终止。由于是无界队列，如果排队任务过多，可能会消耗过多的内存。
+
+newCachedThreadPool的corePoolSize为0, maximumPoolSize为Integer.MAⅩ_VALUE,keepAliveTime是60秒，队列为SynchronousQueue。它的含义是：当新任务到来时，如果正好有空闲线程在等待任务，则其中一个空闲线程接受该任务，否则就总是创建一个新线程，创建的总线程个数不受限制，对任一空闲线程，如果60秒内没有新任务，就终止。
+
+在系统负载很高的情况下，newFixedThreadPool可以通过队列对新任务排队，保证有足够的资源处理实际的任务，而newCachedThreadPool会为每个任务创建一个线程，导致创建过多的线程竞争CPU和内存资源，使得任何实际任务都难以完成，这时， newFixedThreadPool更为适用。
+
+不过，如果系统负载不太高，单个任务的执行时间也比较短，newCachedThreadPool的效率可能更高，因为任务可以不经排队，直接交给某一个空闲线程。在系统负载可能极高的情况下，两者都不是好的选择，newFixedThreadPool的问题是队列过长，而newCachedThreadPool的问题是线程过多，这时，应根据具体情况自定义ThreadPoolExecutor，传递合适的参数。
+
+##### 线程池的死锁
+任务之间有依赖，这种情况可能会出现死锁。比如任务A，在它的执行过程中，它给同样的任务执行服务提交了一个任务B，但需要等待任务B结束。如果任务A是提交给了一个单线程线程池，一定会出现死锁，A在等待B的结果，而B在队列中等待被调度。如果是提交给了一个限定线程个数的线程池，也有可能因线程数限制出现死锁。
+
+可以使用newCachedThreadPool创建线程池，让线程数不受限制。另一个解决方法是使用SynchronousQueue，它可以避免死锁，
+
+**ThreadPoolExecutor实现了生产者/消费者模式，工作者线程就是消费者，任务提交者就是生产者，线程池自己维护任务队列。当我们碰到类似生产者/消费者问题时，应该优先考虑直接使用线程池。**
+
+#### 定时任务的那些陷阱
+##### Timer和TimerTask
+TimerTask表示一个定时任务，它是一个抽象类，实现了Runnable，具体的定时任务需要继承该类，实现run方法。Timer是一个具体类，它负责定时任务的调度和执行，主要方法有：
+![img_57.png](img_57.png)
+需要注意固定延时（fixed-delay）与固定频率（fixed-rate）的区别，二者都是重复执行，但后一次任务执行相对的时间是不一样的，对于固定延时，它是基于上次任务的“实际”执行时间来算的，如果由于某种原因，上次任务延时了，则本次任务也会延时，而固定频率会尽量补够运行次数。
+
+**基本原理**
+
+Timer内部主要由任务队列和Timer线程两部分组成。任务队列是一个基于堆实现的优先级队列，按照下次执行的时间排优先级。Timer线程负责执行所有的定时任务，需要强调的是，**一个Timer对象只有一个Timer线程**。Timer线程主体是一个循环，从队列中获取任务，如果队列中有任务且计划执行时间小于等于当前时间，就执行它，如果队列中没有任务或第一个任务延时还没到，就睡眠。如果睡眠过程中队列上添加了新任务且新任务是第一个任务，Timer线程会被唤醒，重新进行检查。
+
+Timer/TimerTask的基本使用是比较简单的，但需要注意：
+- 后台只有一个线程在运行；
+- 固定频率的任务被延迟后，可能会立即执行多次，将次数补够；
+- 固定延时任务的延时相对的是任务执行前的时间；
+- 不要在定时任务中使用无限循环；
+- 一个定时任务的未处理异常会导致所有定时任务被取消。
+
+#### ScheduledExecutorService
+**基本用法**
+
+ScheduledExecutorService是一个继承自ExecutorService的接口，具有以下方法：
+![img_58.png](img_58.png)
+
+它们的返回类型都是ScheduledFuture，它是一个接口，扩展了Future和Delayed，没有定义额外方法。这些方法的大部分语义与Timer中的基本是类似的。对于固定频率的任务，第一次执行时间为initialDelay后，第二次为initialDelay+period，第三次为initialDelay+2*period，以此类推。不过，对于固定延时的任务，它是从任务执行后开始算的，第一次为initialDelay后，第二次为第一次任务执行结束后再加上delay。与Timer不同，它不支持以绝对时间作为首次运行的时间。
+
+ScheduledExecutorService的主要实现类是ScheduledThreadPoolExecutor，它是线程池ThreadPoolExecutor的子类，是基于线程池实现的，工厂类Executors也提供了一些方便的方法，以方便创建ScheduledThreadPoolExecutor：
+![img_59.png](img_59.png)
+**基本示例**
+
+代码已同步到src/com.demo.concurrency下的ScheduledDemo
+
+与Timer不同，单个定时任务的异常不会再导致整个定时任务被取消，即使后台只有一个线程执行任务。不过，与Timer不同，没有异常被抛出，异常没有在任何地方体现。所以，与Timer中的任务类似，应该捕获所有异常。
 
 
+实践中建议使用ScheduledExecutorService。它的局限是不太胜任复杂的定时任务调度。比如，每周一和周三晚上18:00到22:00，每半小时执行一次。对于类似这种需求，利用更为强大的第三方类库，比如Quartz。
+
+在并发应用程序中，一般我们应该尽量利用高层次的服务，比如各种并发容器、任务执行服务和线程池等，避免自己管理线程和它们之间的同步。但在个别情况下，自己管理线程及同步是必需的，这时，除了利用前面章节介绍的synchronized显式锁和条件等基本工具，Java并发包还提供了一些高级的同步和协作工具，以方便实现并发应用。
