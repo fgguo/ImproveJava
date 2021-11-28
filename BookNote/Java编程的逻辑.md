@@ -1781,3 +1781,30 @@ ThreadLocal的典型用途是提供上下文信息，比如在一个Web服务器
 ##### 基本实现原理
 每个线程都有一个Map，类型为ThreadLocalMap，调用set实际上是在线程自己的Map里设置了一个Entry，键为当前的ThreadLocal对象，值为value。ThreadLocalMap是一个内部类，它是专门用于ThreadLocal的，与一般的Map不同，它的键类型为WeakReference<ThreadLocal>,使用它，便于回收内存。调用其get实际上就是以ThreadLocal对象为键读当前线程的Map，这样，就实现了每个线程都有自己的独立副本的效果。
 
+### 并发总结
+#### 线程安全的机制
+线程表示一条单独的执行流，每个线程有自己的执行计数器，有自己的栈，但可以共享内存，共享内存是实现线程协作的基础，但共享内存有两个问题，竞态条件和内存可见性，解决这些问题的有以下思路：
+- synchronized：它只是一个关键字，大部分情况下，放到类的方法声明上就可以了，既可以解决竞态条件问题，也可以解决内存可见性问题。需要理解的是，它保护的是对象，而不是代码，只有对同一个对象的synchronized方法调用，synchronized才能保证它们被顺序调用。对于实例方法，这个对象是this；对于静态方法，这个对象是类对象；对于代码块，需要指定哪个对象。另外，需要注意，它不能尝试获取锁，也不响应中断，还可能会死锁。不过，**相比显式锁，synchronized简单易用，JVM也在不断优化它的实现，应该被优先使用。**
+- 显式锁：显示锁是相对于synchronized隐式锁而言的，它可以实现synchronized同样的功能，但需要程序员自己创建锁，调用锁相关的接口，主要接口是Lock，主要实现类是ReentrantLock。相比synchronized，**显式锁支持以非阻塞方式获取锁，可以响应中断，可以限时，可以指定公平性，可以解决死锁问题，这使得它灵活得多**。在读多写少、读操作可以完全并行的场景中，可以使用读写锁以提高并发度，读写锁的接口是ReadWriteLock，实现类是ReentrantReadWriteLock。
+- volatile：synchronized和显式锁都是锁，使用锁可以实现安全，但使用锁是有成本的，获取不到锁的线程还需要等待，会有线程的上下文切换开销等。保证安全不一定需要锁。**如果共享的对象只有一个，操作也只是进行最简单的get/set操作，set也不依赖于之前的值，那就不存在竞态条件问题，而只有内存可见性问题，这时，在变量的声明上加上volatile就可以了。**
+- 原子变量和CAS：使用volatile, set的新值不能依赖于旧值，但很多时候，set的新值与原来的值有关，这时，也不一定需要锁，**如果需要同步的代码比较简单，可以考虑原子变量**对于并发环境中的计数、产生序列号等需求，考虑使用原子变量而非锁。原子变量的基础是CAS，一般的计算机系统都在硬件层次上直接支持CAS指令。CAS是Java并发包的基础，基于它可以实现高效的、乐观、非阻塞式数据结构和算法，它也是并发包中锁、同步工具和各种容器的基础。
+- 写时复制：之所以会有线程安全的问题，是因为多个线程并发读写同一个对象，如果每个线程读写的对象都是不同的，或者，如果共享访问的对象是只读的，不能修改，那也就不存在线程安全问题了。**写时复制就是将共享访问的对象变为只读的，写的时候，再使用锁，保证只有一个线程写，写的线程不是直接修改原对象，而是新创建一个对象，对该对象修改完毕后，再原子性地修改共享访问的变量，让它指向新的对象**。CopyOnWriteArrayList和CopyOnWriteArraySet使用了这种技术。
+- ThreadLocal：ThreadLocal就是让每个线程，对同一个变量，都有自己的独有副本，每个线程实际访问的对象都是自己的，自然也就不存在线程安全问题了。
+#### 线程的协作机制
+- wait/notify：wait/notify方法只能在synchronized代码块内被调用，调用wait时，线程会释放对象锁，被notify/notifyAll唤醒后，要重新竞争对象锁，获取到锁后才会从wait调用中返回，返回后，不代表其等待的条件就一定成立了，需要重新检查其等待的条件。每个对象都有一把锁和两个等待队列，一个是锁等待队列，放的是等待获取锁的线程；另一个是条件等待队列，放的是等待条件的线程，wait将自己加入条件等待队列，notify从条件等待队列上移除一个线程并唤醒，notifyAll移除所有线程并唤醒。
+- 显式条件：显式条件与显式锁配合使用，与wait/notify相比，可以支持多个条件队列，代码更为易读，效率更高。使用时注意**不要将signal/signalAll误写为notify/notifyAll**。
+- 线程的中断：Java中取消/关闭一个线程的方式是中断。中断并不是强迫终止一个线程，它是一种协作机制，是给线程传递一个取消信号，但是由线程来决定如何以及何时退出，线程在不同状态和IO操作时对中断有不同的反应。**作为线程的实现者，应该提供明确的取消/关闭方法，并用文档清楚描述其行为；作为线程的调用者，应该使用其取消/关闭方法，而不是贸然调用interrupt。**
+- 协作工具类：信号量类Semaphore用于限制对资源的并发访问数。倒计时门栓CountDownLatch主要用于不同角色线程间的同步，比如在裁判/运动员模式中，裁判线程让多个运动员线程同时开始，也可以用于协调主从线程，让主线程等待多个从线程的结果。循环栅栏CyclicBarrier用于同一角色线程间的协调一致，所有线程在到达栅栏后都需要等待其他线程，等所有线程都到达后再一起通过，它是循环的，可以用作重复的同步。
+- 阻塞队列：阻塞队列封装了锁和条件，生产者线程和消费者线程只需要调用队列的入队/出队方法就可以了，不需要考虑同步和协作问题。阻塞队列有普通的先进先出队列，包括基于数组的ArrayBlockingQueue和基于链表的LinkedBlockingQueue/LinkedBlockingDeque，也有基于堆的优先级阻塞队列PriorityBlockingQueue，还有可用于定时任务的延时阻塞队列DelayQueue，以及用于特殊场景的阻塞队列SynchronousQueue和LinkedTransferQueue。
+- Future/FutureTask：使用异步任务执行服务，不用手工创建线程，而只是提交任务，提交后马上得到一个结果，但这个结果不是最终结果，而是一个Future。Future是一个接口，主要实现类是FutureTask。Future封装了主线程和执行线程关于执行状态和结果的同步，对于主线程而言，它只需要通过Future就可以查询异步任务的状态、获取最终结果、取消任务等，不需要再考虑同步和协作问题。
+
+#### 容器类
+- 同步容器：Collections类中有一些静态方法，可以基于普通容器返回线程安全的同步容器，比如synchronizedCollection/List/Map。它们是给所有容器方法都加上synchronized来实现安全的。同步容器的性能比较低，另外，还需要注意一些问题，比如复合操作和迭代，需要调用方手工使用synchronized同步，并注意不要同步错对象。
+- 写时复制的List和Set：CopyOnWriteArrayList基于数组实现了List接口，CopyOnWriteArraySet基于CopyOnWriteArrayList实现了Set接口，它们采用了写时复制，适用于读远多于写，集合不太大的场合。
+- ConcurrentHashMap：ConcurrentHashMap是并发版的HashMap，通过细粒度锁和其他技术实现了高并发，读操作完全并行，写操作支持一定程度的并行，以原子方式支持一些复合操作，迭代不用加锁，不会抛出ConcurrentModificationException。
+- 基于SkipList的Map和Set：Java并发包中与TreeMap/TreeSet对应的并发版本是ConcurrentSkipListMap和ConcurrentSkipListSet。ConcurrentSkipListMap是基于SkipList实现的，SkipList称为跳跃表或跳表，是一种数据结构，主要操作复杂度为O(log2(N))。并发版本采用跳表而不是树，是因为跳表更易于实现高效并发算法。
+- 各种队列：各种阻塞队列主要用于协作，非阻塞队列适用于多个线程并发使用一个队列的场合，有两个非阻塞队列：ConcurrentLinkedQueue和ConcurrentLinkedDeque。ConcurrentLinkedQueue实现了Queue接口，表示一个先进先出的队列；ConcurrentLinkedDeque实现了Deque接口，表示一个双端队列。它们都是基于链表实现的，都没有限制大小，是无界的，这两个类最基础的实现原理是循环CAS，没有使用锁。
+#### 任务执行服务
+- 基本概念：任务执行服务简化了执行异步任务所需的开发，它引入了一个“执行服务”的概念，将“任务的提交”和“任务的执行”相分离，“执行服务”封装了任务执行的细节。任务执行服务主要涉及以下接口： Runnable和Callable：表示要执行的异步任务；Executor和ExecutorService：表示执行服务；Future：表示异步任务的结果。使用者只需要通过ExecutorService提交任务，通过Future操作任务和结果即可，不需要关注线程创建和协调的细节。
+- 线程池：任务执行服务的主要实现机制是线程池，实现类是ThreadPoolExecutor。线程池主要由两个概念组成：一个是任务队列；另一个是工作者线程。任务队列是一个阻塞队列，保存待执行的任务。工作者线程主体就是一个循环，循环从队列中接收任务并执行。ThreadPoolExecutor有一些重要的参数，如核心线程数等。**ThreadPoolExecutor实现了生产者/消费者模式，工作者线程就是消费者，任务提交者就是生产者，线程池自己维护任务队列。当我们碰到类似生产者/消费者问题时，应该优先考虑直接使用线程池，而非“重新发明轮子”**。
+- 定时任务：在Java中，有两种方式实现定时任务使用java.util包中的Timer和TimerTask，使用Java并发包中的ScheduledExecutorService，Timer有一些缺陷，**实践中建议使用ScheduledExecutorService。**
