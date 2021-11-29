@@ -13,11 +13,11 @@ import java.util.List;
  * @date: 2021/11/23
  **/
 public class StudentFileDemo {
-    public static void writeStudents(List<Student> students) throws IOException {
+    public static void writeStudents(List<com.demo.file.Student> students) throws IOException {
         //PrintWriter
         PrintWriter writer = new PrintWriter("students.txt");
         try {
-            for(Student student : students){
+            for(com.demo.file.Student student : students){
                 writer.println(student.getName() + "," + student.getAge() + "," + student.getScore());
             }
         }
@@ -51,16 +51,16 @@ public class StudentFileDemo {
 //        }
     }
 
-    public static List<Student> readStudents() throws IOException{
+    public static List<com.demo.file.Student> readStudents() throws IOException{
         //BufferedReader
         BufferedReader reader = null;
         try {
             reader = new BufferedReader(new FileReader("students.txt"));
-            List<Student> students = new ArrayList<>();
+            List<com.demo.file.Student> students = new ArrayList<>();
             String line = reader.readLine();
             while (line != null){
                 String [] fields = line.split(",");
-                Student student = new Student();
+                com.demo.file.Student student = new com.demo.file.Student();
                 student.setName(fields[0]);
                 student.setAge(Integer.parseInt(fields[1]));
                 student.setScore(Double.parseDouble(fields[2]));
@@ -96,12 +96,12 @@ public class StudentFileDemo {
 
 
     public static void main(String[] args) throws IOException {
-        List<Student> students = Arrays.asList(new Student[]{new Student("张三",16,60d),new Student("李四",16,70d),new Student("王五",16,66d)});
+        List<com.demo.file.Student> students = Arrays.asList(new com.demo.file.Student[]{new com.demo.file.Student("张三",16,60d),new com.demo.file.Student("李四",16,70d),new com.demo.file.Student("王五",16,66d)});
         StudentFileDemo.writeStudents(students);
 
         //读
-        List<Student> readStudents = StudentFileDemo.readStudents();
-        for(Student s : readStudents){
+        List<com.demo.file.Student> readStudents = StudentFileDemo.readStudents();
+        for(com.demo.file.Student s : readStudents){
             System.out.println(s.toString());
         }
     }

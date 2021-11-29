@@ -246,6 +246,7 @@ STATIC_TWO=2；语句外面包了一个static {}，这叫静态初始化代码�
 - 2）对所有实例变量赋默认值；
 - 3）执行实例初始化代码。
   
+
 分配的内存包括本类和所有父类的实例变量，但不包括任何静态变量。实例初始化代码的执行从父类开始，再执行子类的。但在任何类执行初始化代码之前，所有实例变量都已设置完默认值。每个对象除了保存类的实例变量之外，还保存着实际类信息的引用。Child c = new Child()；会将新创建的Child对象引用赋给变量c，而Base b = c；会让b也引用这个Child对象。创建和赋值后，内存布局如图：
 ![img_6.png](img_6.png)
 ##### 方法调用的过程
@@ -501,7 +502,7 @@ finally语句有一个执行细节，如果在try或者catch语句内有return�
 ##### Date 
 Date是Java API中最早引入的关于日期的类，一开始，Date也承载了关于年历的角色，但由于不能支持国际化，其中的很多方法都已经过时了，被标记为了@Deprecated，不再建议使用。
 - Date有两个构造方法：第一个构造方法是根据传入的毫秒数进行初始化；第二个构造方法是默认构造方法，它根据System.currentTimeMillis()的返回值进行初始化。System.currentTimeMillis()是一个常用的方法，它返回当前时刻距离纪元时的毫秒数。
-![img_16.png](img_16.png)
+  ![img_16.png](img_16.png)
   
 ##### TimeZone
 TimeZone表示时区，它是一个抽象类，有静态方法用于获取其实例。获取当前的默认时区，代码为：
@@ -529,7 +530,7 @@ pattern中的英文字符a～z和A～Z表示特殊含义，其他字符原样输
 - mm：表示分钟，用两位数表示。
 - ss：表示秒，用两位数表示。
 - E：表示星期几
-![img_18.png](img_18.png)
+  ![img_18.png](img_18.png)
   
 #### 随机
 ##### Math.random
@@ -580,7 +581,7 @@ Java支持限定参数的一个上界，也就是说，参数必须为给定的�
 - 类型信息也是一个对象，它的类型为Class, Class本身也是一个泛型类，每个类的类型对象可以通过类名.class的方式引用，比如String. class。这个类型对象也可以通过对象的getClass()方法获得，这个类型对象只有一份，与泛型无关，所以Java不支持类似如下写法：
 ```
     Pair<Integer>.class;
-```  
+```
 一个泛型对象的getClass方法的返回值与原始类型对象也是相同的，比如，下面代码的输出都是true：
 ```
     Pair<Integer> p1 = new Pair<Integer>(1, 100);
@@ -615,7 +616,7 @@ Java支持限定参数的一个上界，也就是说，参数必须为给定的�
 ```
 - 除了iterator(), ArrayList还提供了返回Iterator接口的方法：ListIterator扩展了Iterator接口，增加了一些方法，向前遍历、添加元素、修改元素、返回索引位置等.
 - 关于迭代器，有一种常见的误用，就是在迭代的中间调用容器的删除方法:
-![img_21.png](img_21.png)
+  ![img_21.png](img_21.png)
   如何避免这个异常呢？可以使用迭代器的remove方法，如下所示：
   ![img_22.png](img_22.png)
   
@@ -673,6 +674,7 @@ ArrayDeque实现了双端队列，内部使用循环数组实现，这决定了�
 - 2）根据元素内容查找和删除的效率比较低，为O(N)。
 - 3）与ArrayList和LinkedList不同，没有索引位置的概念，不能根据索引位置进行操作。
   
+
 ArrayDeque和LinkedList都实现了Deque接口，应该用哪一个呢？如果只需要Deque接口，从两端进行操作，**一般而言，ArrayDeque效率更高一些，应该被优先使用；如果同时需要根据索引位置进行操作，或者经常需要在中间进行插入和删除，则应该选LinkedList。**
 
 ### Map和Set
@@ -977,6 +979,7 @@ DataOutputStream是装饰类基类FilterOutputStream的子类，FilterOutputStre
 - 2）writeInt：写入4个字节，最高位字节先写入，最低位最后写入。
 - 3）writeUTF：将字符串的UTF-8编码字节写入，这个编码格式与标准的UTF-8编码略有不同。
   
+
 与FilterOutputStream一样，DataOutputStream的构造方法也是接受一个已有的Output-Stream：
 
 例子，保存一个学生列表到文件中，见demo中。
@@ -1281,7 +1284,7 @@ Java在Object类而非Thread类中定义了一些线程协作的基本方法，�
     public boolean isInterrupted()
     public void interrupt()
     public static boolean interrupted()
-``` 
+```
 
 isInterrupted()和interrupt()是实例方法，调用它们需要通过线程对象；interrupted()是静态方法，实际会调用Thread. currentThread()操作当前线程。每个线程都有一个标志位，表示该线程是否被中断了。
 - 1）isInterrupted：返回对应线程的中断标志位是否为true。
@@ -1361,6 +1364,7 @@ Java并发包中的显式锁，可以解决synchronized的限制。Java并发包
 - 4）tryLock(long time, TimeUnit unit)：先尝试获取锁，如果能成功则立即返回true，否则阻塞等待，但等待的最长时间由指定的参数设置，在等待的同时响应中断，如果发生了中断，抛出InterruptedException，如果在等待的时间内获得了锁，返回true，否则返回false。
 - 5）newCondition：新建一个条件，一个Lock可以关联多个条件。
   
+
 可以看出，相比synchronized，显式锁支持以非阻塞方式获取锁、可以响应中断、可以限时，这使得它灵活得多。
 
 ##### 可重入锁ReentrantLock
@@ -1523,6 +1527,7 @@ Java并发包提供了丰富的队列类，可以简单分为以下几种。
 - 延时阻塞队列：DelayQueue。
 - 其他阻塞队列：SynchronousQueue和LinkedTransferQueue。
   
+
 无锁非阻塞是指，这些队列不使用锁，所有操作总是可以立即执行，主要通过循环CAS实现并发安全。阻塞队列是指，这些队列使用锁和条件，很多操作都需要先获取锁或满足特定条件，获取不到锁或等待条件时，会等待（即阻塞），获取到锁或条件满足再返回。
 ##### 无锁非阻塞并发队列
 两个无锁非阻塞队列：ConcurrentLinkedQueue和ConcurrentLinkedDeque，它们适用于多个线程并发使用一个队列的场合，都是基于链表实现的，都没有限制大小，是无界的，与ConcurrentSkipListMap类似，它们的size方法不是一个常量运算，不过这个方法在并发应用中用处也不大。
@@ -1605,6 +1610,7 @@ newTaskFor就是创建了一个FutureTask对象，FutureTask实现了RunnableFut
 - 3）如果执行过程发生异常，调用setException设置异常，异常也是保存到outcome，但状态不一样；
 - 4）set和setException除了设置结果、修改状态外，还会调用finishCompletion，它会唤醒所有等待结果的线程。
   
+
 对于任务提交者，它通过get方法获取结果。
 #### 线程池
 线程池里面有若干线程，它们的目的就是执行提交给线程池的任务，执行完一个任务后不会退出，而是继续等待或执行新任务。线程池主要由两个概念组成：一个是任务队列；另一个是工作者线程。工作者线程主体就是一个循环，循环从队列中接受任务并执行，任务队列保存待执行的任务。
@@ -1629,6 +1635,7 @@ ThreadPoolExecutor要求的队列类型是阻塞队列BlockingQueue，比如：
 - PriorityBlockingQueue：基于堆的无界阻塞优先级队列。
 - SynchronousQueue：没有实际存储空间的同步阻塞队列。
   
+
 如果用的是无界队列，需要强调的是，线程个数最多只能达到corePoolSize，到达corePoolSize后，新的任务总会排队，参数maximumPoolSize也就没有意义了。
 
 **任务拒绝策略**
@@ -1808,3 +1815,123 @@ ThreadLocal的典型用途是提供上下文信息，比如在一个Web服务器
 - 基本概念：任务执行服务简化了执行异步任务所需的开发，它引入了一个“执行服务”的概念，将“任务的提交”和“任务的执行”相分离，“执行服务”封装了任务执行的细节。任务执行服务主要涉及以下接口： Runnable和Callable：表示要执行的异步任务；Executor和ExecutorService：表示执行服务；Future：表示异步任务的结果。使用者只需要通过ExecutorService提交任务，通过Future操作任务和结果即可，不需要关注线程创建和协调的细节。
 - 线程池：任务执行服务的主要实现机制是线程池，实现类是ThreadPoolExecutor。线程池主要由两个概念组成：一个是任务队列；另一个是工作者线程。任务队列是一个阻塞队列，保存待执行的任务。工作者线程主体就是一个循环，循环从队列中接收任务并执行。ThreadPoolExecutor有一些重要的参数，如核心线程数等。**ThreadPoolExecutor实现了生产者/消费者模式，工作者线程就是消费者，任务提交者就是生产者，线程池自己维护任务队列。当我们碰到类似生产者/消费者问题时，应该优先考虑直接使用线程池，而非“重新发明轮子”**。
 - 定时任务：在Java中，有两种方式实现定时任务使用java.util包中的Timer和TimerTask，使用Java并发包中的ScheduledExecutorService，Timer有一些缺陷，**实践中建议使用ScheduledExecutorService。**
+
+### 反射
+在一般操作数据的时候，我们都是知道并且依赖于数据类型的，比如：
+- 1）根据类型使用new创建对象。
+- 2）根据类型定义变量，类型可能是基本类型、类、接口或数组。
+- 3）将特定类型的对象传递给方法。
+- 4）根据类型访问对象的属性，调用对象的方法。
+
+反射是在运行时，而非编译时，它动态获取类型的信息，比如接口信息、成员信息、方法信息、构造方法信息等，根据这些动态获取到的信息创建对象、访问/修改成员、调用方法等。反射的入口是名称为Class的类。
+#### Class类
+每个已加载的类在内存都有一份类信息，每个对象都有指向它所属类信息的引用。Java中，**类信息对应的类就是java.lang.Class**。所有类的根父类Object有一个方法，可以获取对象的Class对象：
+``` 
+    public final native Class<?> getClass()
+```
+Class是一个泛型类，有一个类型参数，getClass()并不知道具体的类型，所以返回Class<?>。
+
+获取Class对象不一定需要实例对象，如果在写程序时就知道类名，可以使用<类名>.class获取Class对象，比如：
+``` 
+    Class<Date> cls = Data.class;
+```
+上面这种方式对于接口也是适用的.
+基本类型没有getClass方法，但也都有对应的Class对象，类型参数为对应的包装类型，比如：
+![img_62.png](img_62.png)
+
+对于数组，每种类型都有对应数组类型的Class对象，每个维度都有一个，即一维数组有一个，二维数组有一个不同的类型。比如：
+![img_63.png](img_63.png)
+
+Class有一个静态方法forName，可以根据类名直接加载Class，获取Class对象，注意forName可能抛出异常ClassNotFoundException:
+``` 
+    try{
+        Class<?> cls = Class.forName("java.util.HashMap);
+        System.out.println(cls.getName());
+    }
+    catch(ClassNotFoundException e){
+        //处理异常
+    }
+```
+
+有了Class对象后，我们就可以了解到关于类型的很多信息，并基于这些信息采取一些行动
+##### 名称信息
+Class可以获取与名称有关信息的方法有：getSimpleName返回的名称不带包信息，getName返回的是Java内部使用的真正的名称，getCanonicalName返回的名称更为友好，getPackage返回的是包信息，它们的不同如下所示：
+![img_64.png](img_64.png)
+
+数组类型的getName返回值，它使用前缀"["表示数组，有几个"["表示是几维数组；数组的类型用一个字符表示，I表示int, L表示类或接口，其他类型与字符的对应关系为：boolean(Z)、byte(B)、char(C)、double(D)、foat(F)、long(J)、short(S)。对于引用类型的数组，注意最后有一个分号；。
+
+##### 字段信息
+类中定义的静态和实例变量都被称为字段，用类Field表示，位于包java.lang.refect下，反射相关的类都位于该包下。Class有4个获取字段信息的方法：
+![img_65.png](img_65.png)
+
+Field也有很多方法，可以获取字段的信息，也可以通过Field访问和操作指定对象中该字段的值，基本方法有：![img_66.png](img_66.png)
+对于private字段，直接调用get/set会抛出非法访问异常IllegalAccessException，应该先调用setAccessible(true)以关闭Java的检查机制
+
+Field的getModifiers返回的是一个int，可以通过Modifier类的静态方法进行解读。比如，![img_67.png](img_67.png)
+
+##### 方法信息
+类中定义的静态和实例方法都被称为方法，用类Method表示。Class有如下相关方法：
+![img_68.png](img_68.png)
+
+通过Method可以获取方法的信息，也可以通过Method调用对象的方法，基本方法有:
+![img_69.png](img_69.png)
+对invoke方法，如果Method为静态方法，obj被忽略，可以为null, args可以为null，也可以为一个空的数组，方法调用的返回值被包装为Object返回.
+
+##### 创建对象和构造方法
+Class有一个方法newInstance，可以用它来创建对象，它只能使用类的默认构造方法（即无参public构造方法），如果类没有该构造方法，会抛出异常InstantiationException。简单的使用例子如下：
+``` 
+    Map<String,String> map = HashMap.class.newInstance();
+    map.put("hello","123");
+```
+Class还有一些方法，可以获取所有的构造方法：
+
+![img_70.png](img_70.png)
+
+类Constructor表示构造方法，通过它可以创建对象，方法同样是newInstance。看个例子：
+``` 
+    Constructor<StringBuilder> constructor = StringBuilder.class.getConstructor(new Class[]{int.class});
+    StringBuilder sb = constructor.newInstance(100);
+```
+##### 类型检查和转换
+如果要检查的类型是动态的，可以使用Class类的isInstance(Object obj)方法：
+![img_71.png](img_71.png)
+
+强制转换到的类型如果是动态的，可以使用Class的cast(Object obj)方法。
+
+##### Class的类型信息
+Class代表的类型既可以是普通的类，也可以是内部类，还可以是基本类型、数组等，对于一个给定的Class对象，它到底是什么类型呢？可以通过以下方法进行检查：
+![img_72.png](img_72.png)
+
+##### 类的声明信息
+Class还有很多方法，可以获取类的声明信息，如修饰符、父类、接口、注解等
+##### 类的加载
+Class有两个静态方法，可以根据类名加载类：
+``` 
+    public static Class<?> forName(String className)
+    public static Class<?> forName(String className,boolean initialize, ClassLoader loader)
+```
+ClassLoader表示类加载器，initialize表示加载后，是否执行类的初始化代码（如static语句块）.一个方法相当于调用：Class.forName(className,true,currentLoader)
+##### 反射与数组
+对于数组类型，Class类的getContentType()可以获取它的元素类型。
+
+java.lang.refect包中有一个针对数组的专门的类Array（注意不是java.util中的Arrays)，提供了对于数组的一些反射支持，以便于统一处理多种类型的数组。
+#### 应用示例
+见src/com.demo.reflect下的SimpleReflectDemo。实现了一个简单的序列化/反序列化
+
+#### 反射与泛型
+在类信息Class中依然有关于泛型的一些信息，可以通过反射得到。
+
+![img_74.png](img_74.png)
+
+Type是一个接口，Class实现了Type, Type的其他子接口还有：
+- TypeVariable：类型参数，可以有上界，比如T extends Number；
+- ParameterizedType：参数化的类型，有原始类型和具体的类型参数，比如List<String>；
+- WildcardType：通配符类型，比如？、? extends Number、? super Integer
+
+反射虽然是灵活的，但一般情况下，并不是我们优先建议的，主要原因是：1）反射更容易出现运行时错误，使用显式的类和接口，编译器能帮我们做类型检查，减少错误，但使用反射，类型是运行时才知道的，编译器无能为力。2）反射的性能要低一些，在访问字段、调用方法前，反射先要查找对应的Field/Method，要慢一些。**如果能用接口实现同样的灵活性，就不要使用反射**。
+
+
+
+
+
+
