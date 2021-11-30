@@ -1,5 +1,7 @@
 package com.demo.proxy;
 
+import main.java.com.demo.proxy.RealProvider;
+
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -33,7 +35,7 @@ public class DynamicProxy implements InvocationHandler {
 
     public static void main(String[] args) {
         DynamicProxy dynamicProxy = new DynamicProxy();
-        IProvider iProvider = (IProvider) dynamicProxy.bind(new SimpleProvider());
+        com.demo.proxy.IProvider iProvider = (com.demo.proxy.IProvider) dynamicProxy.bind(new RealProvider());
         iProvider.getData("dynamic proxy");
     }
 }

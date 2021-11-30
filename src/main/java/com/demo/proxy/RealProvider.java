@@ -1,4 +1,4 @@
-package com.demo.proxy;
+package main.java.com.demo.proxy;
 
 /**
  * @author fuguo
@@ -6,7 +6,7 @@ package com.demo.proxy;
  */
 
 //接口的实现类
-public class SimpleProvider implements IProvider{
+public class RealProvider implements com.demo.proxy.IProvider {
 
     @Override
     public Object getData(String json) {
