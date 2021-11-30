@@ -1,4 +1,4 @@
-package com.logicalJava.extend;
+package main.java.com.logicalJava.extend;
 
 /**
  * @className: Child
@@ -6,7 +6,7 @@ package com.logicalJava.extend;
  * @author: fuguo
  * @date: 2021/11/19
  **/
-public class Child extends Base{
+public class Child extends com.logicalJava.extend.Base {
     public static int s;
     private int a;
     static {
@@ -31,7 +31,7 @@ public class Child extends Base{
         Child c = new Child();
         System.out.println("-------c.action-----");
         c.action();
-        Base b = c;
+        com.logicalJava.extend.Base b = c;
         System.out.println("-------b.action()--------");
         b.action();
         System.out.println("-------b.s: " + b.s);
