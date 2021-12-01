@@ -37,5 +37,8 @@ public class DynamicProxy implements InvocationHandler {
         DynamicProxy dynamicProxy = new DynamicProxy();
         com.demo.proxy.IProvider iProvider = (com.demo.proxy.IProvider) dynamicProxy.bind(new RealProvider());
         iProvider.getData("dynamic proxy");
+        Class clazz;
+        Class[] parameterTypes;
+        
     }
 }

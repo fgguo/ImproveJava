@@ -2100,7 +2100,95 @@ JDK代理面向的是一组接口，它为这些接口动态创建了一个实�
 
 代码比较多，不复现了。看书！很重要，对理解AOP的原理帮助很大。
 
+ServiceLogAspect的目的是在类ServiceA和ServiceB所有方法的执行前后加一些日志，而ExceptionAspect的目的是在类ServiceB的方法执行出现异常时收到通知并输出一些信息。它们都**没有修改类ServiceA和ServiceB本身，本身做的事是比较通用的，与ServiceA和ServiceB的具体逻辑关系也不密切，但又想改变ServiceA/ServiceB的行为，这就是AOP的思维。**
+
+Container在初始化的时候，会分析带有@Aspect注解的类，分析出每个类的方法在调用前/调用后/出现异常时应该调用哪些方法，在创建该类的对象时，如果有需要被调用的方法，则创建一个动态代理对象。
 
 
 
+### 类加载机制
 
+**类加载器ClassLoader就是加载其他类的类，它负责将字节码文件加载到内存，创建Class对象**。与之前介绍的反射、注解和动态代理一样，在大部分的应用编程中，我们需要自己实现ClassLoader。
+
+
+
+ClassLoader一般是系统提供的，不需要自己实现，不过，通过创建自定义的ClassLoader，可以实现一些强大灵活的功能，比如：
+
+- 1）热部署。在不重启Java程序的情况下，动态替换类的实现，比如Java Web开发中的JSP技术就利用自定义的ClassLoader实现修改JSP代码即生效。
+- 2）应用的模块化和相互隔离。不同的ClassLoader可以加载相同的类但互相隔离、互不影响。Web应用服务器如Tomcat利用这一点在一个程序中管理多个Web应用程序，每个Web应用使用自己的ClassLoader，这些Web应用互不干扰。
+- 3）从不同地方灵活加载。系统默认的ClassLoader一般从本地的class文件或jar文件中加载字节码文件，通过自定义的ClassLoader，我们可以从共享的Web服务器、数据库、缓存服务器等其他地方加载字节码文件。
+
+#### 类加载的基本机制和过程
+
+运行Java程序，就是执行java这个命令，指定包含main方法的完整类名，以及一个classpath，即类路径。类路径可以有多个，对于直接的class文件，路径是class文件的根目录，对于jar包，路径是jar包的完整名称（包括路径和jar包名）。
+
+Java运行时，会根据类的完全限定名寻找并加载类，寻找的方式基本就是在系统类和指定的类路径中寻找，如果是class文件的根目录，则直接查看是否有对应的子目录及文件；如果是jar文件，则首先在内存中解压文件，然后再查看是否有对应的类。**负责加载类的类就是类加载器，它的输入是完全限定的类名，输出是Class对象**。类加载器不是只有一个，一般程序运行时，都会有三个：
+
+- 启动类加载器（Bootstrap ClassLoader）：这个加载器是Java虚拟机实现的一部分，不是Java语言实现的，一般是C++实现的，它负责加载Java的基础类，主要是<JAVA_HOME>/lib/rt.jar，我们日常用的Java类库比如String、ArrayList等都位于该包内。
+- 扩展类加载器（Extension ClassLoader）：它负责加载Java的一些扩展类，一般是<JAVA_HOME>/lib/ext目录中的jar包。
+- 应用程序类加载器（Application ClassLoader）：它负责加载应用程序的类，包括自己写的和引入的第三方法类库，即所有在类路径中指定的类。
+
+这三个类加载器有一定的关系，可以认为是父子委派关系，Application ClassLoader的父亲是Extension ClassLoader, Extension的父亲是Bootstrap ClassLoader。在子ClassLoader加载类时，一般会首先通过父ClassLoader加载，具体来说，在加载一个类时，基本过程是：
+
+- 1）判断是否已经加载过了，加载过了，直接返回Class对象，一个类只会被一个Class-Loader加载一次。
+- 2）如果没有被加载，先让父ClassLoader去加载，如果加载成功，返回得到的Class对象。
+- 3）在父ClassLoader没有加载成功的前提下，自己尝试加载类。这个过程一般被称为“双亲委派”模型，即优先让父ClassLoader去加载。
+
+**先让父ClassLoader去加载，可以避免Java类库被覆盖的问题**。比如，用户程序也定义了一个类java.lang.String，通过双亲委派，java.lang.String只会被Bootstrap ClassLoader加载，避免自定义的String覆盖Java类库的定义。双亲委派”虽然是一般模型，但也有一些例外，比如在JDBC和Tomcat。
+
+**一个程序运行时，会创建一个Application ClassLoader，在程序中用到ClassLoader的地方，如果没有指定，一般用的都是这个ClassLoader，所以，这个ClassLoader也被称为系统类加载器（System ClassLoader）**。
+
+#### 理解ClassLoader
+
+类ClassLoader是一个抽象类，每个Class对象可以获取实际加载它的ClassLoader，方法是getClassLoader()。ClassLoader有一个方法可以获取父ClassLoader，即getParent()。
+
+ClassLoader有一个静态方法，可以获取默认的系统类加载器：public static ClassLoader getSystemClassLoader()。
+
+ClassLoader用于加载类的方法是loadClass：
+
+```Java
+		public Class<?> loadClass(String name) throws ClassNotFoundException
+```
+
+比如
+
+![image-20211201103052978](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211201103052978.png)
+
+需要说明的是，由于委派机制，Class的getClassLoader方法返回的不一定是调用loadClass的ClassLoader，比如，上面代码中，java.util.ArrayList实际由BootStrap ClassLoader加载，所以返回值就是null。
+
+
+
+Class有两个静态方法forName：
+
+![image-20211201103226826](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211201103226826.png)
+
+第一个方法使用系统类加载器加载，第二个方法指定ClassLoader，参数initialize表示加载后是否执行类的初始化代码（如static语句块），没有指定默认为true。
+
+ClassLoader的loadClass方法与Class的forName方法基本是一样的，都可以加载类，不过，**ClassLoader的loadClass不会执行类的初始化代码**。
+
+#### 类加载的应用：可配置的策略
+
+可以通过ClassLoader的loadClass或Class.forName自己加载类。**很多应用使用面向接口的编程，接口具体的实现类可能有很多，适用于不同的场合，具体使用哪个实现类在配置文件中配置，通过更改配置，不用改变代码，就可以改变程序的行为，在设计模式中，这是一种策略模式。**
+
+比如：定义一个服务接口IService，客户端通过该接口访问其action方法，怎么获得IService实例呢？查看配置文件，根据配置的实现类，自己加载，使用反射创建实例对象，示例代码在书上24.3。
+
+#### 自定义ClassLoader
+
+一般而言，继承类ClassLoader，重写findClass就可以自定义ClassLoader了。实现findClass就是使用自己的逻辑寻找class文件字节码的字节形式，找到后，使用如下方法转换为Class对象：
+
+![image-20211201104929485](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211201104929485.png)
+
+name表示类名，b是存放字节码数据的字节数组，有效数据从off开始，长度为len，例子如下：
+
+![image-20211201105038402](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211201105038402.png)
+
+MyClassLoader从BASE_DIR下的路径中加载类，它先读取class文件，转换为byte数组。MyClassLoader没有指定父ClassLoader，默认是系统类加载器，即ClassLoader.getSystemClassLoader()的返回值，不过，ClassLoader有一个可重写的构造方法，可以指定父ClassLoader。将BASE_DIR加到classpath中其实也可以，这里主要是演示基本用法，实际中，**可以从Web服务器、数据库或缓存服务器获取bytes数组，这就不是系统类加载器能做到的了。**使用MyClassLoader加载，还有一个很大的好处，那就是可以创建多个MyClassLoader，对同一个类，每个MyClassLoader都可以加载一次，得到同一个类的不同Class对象。从而：
+
+- 1）可以实现隔离。一个复杂的程序，内部可能按模块组织，不同模块可能使用同一个类，但使用的是不同版本，如果使用同一个类加载器，它们是无法共存的，不同模块使用不同的类加载器就可以实现隔离，Tomcat使用它隔离不同的Web应用，OSGI使用它隔离不同模块。
+- 2）可以实现热部署。使用同一个ClassLoader，类只会被加载一次，加载后，即使class文件已经变了，再次加载，得到的也还是原来的Class对象，而使用MyClassLoader，则可以先创建一个新的ClassLoader，再用它加载Class，得到的Class对象就是新的，从而实现动态更新。
+
+#### 自定义ClassLoader的应用：热部署
+
+所谓热部署，就是在不重启应用的情况下，当类的定义即字节码文件修改后，能够替换该Class创建的对象。
+
+可以看书24.5的热部署例子。
