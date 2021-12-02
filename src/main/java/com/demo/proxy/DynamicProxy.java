@@ -39,6 +39,6 @@ public class DynamicProxy implements InvocationHandler {
         iProvider.getData("dynamic proxy");
         Class clazz;
         Class[] parameterTypes;
-        
+
     }
 }

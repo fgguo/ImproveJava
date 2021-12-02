@@ -1,0 +1,38 @@
+
+`	java:S112!"FDefine and throw a dedicated exception instead of using a generic one.(Ò‚Òéüÿÿÿÿ
+`	java:S112;"FDefine and throw a dedicated exception instead of using a generic one.(Ò‚Òéüÿÿÿÿ
+`	java:S112?"FDefine and throw a dedicated exception instead of using a generic one.(¸Â×Ùúÿÿÿÿ
+J
+java:S3740"/Provide the parametrized type for this generic.(†‹Âäùÿÿÿÿ
+U
+java:S1118":Add a private constructor to hide the implicit public one.(ø‰Ÿ×úÿÿÿÿ
+H
+java:S1135"2Complete the task associated to this TODO comment.(¼•Åæ
+B
+java:S3011",This accessibility update should be removed.(˜ÂÓ˜
+G
+java:S30114",This accessibility update should be removed.(Í”úÆùÿÿÿÿ
+B
+java:S3011B",This accessibility bypass should be removed.(Í©çÚ
+B
+java:S3011E",This accessibility bypass should be removed.(÷Ê¿
+B
+java:S3011H",This accessibility bypass should be removed.(ç‹œÙ
+B
+java:S3011K",This accessibility bypass should be removed.(ÀÕŸ¼
+G
+java:S3011N",This accessibility bypass should be removed.(íÜîŒûÿÿÿÿ
+A
+java:S3011Q",This accessibility bypass should be removed.(†èc
+G
+java:S3011T",This accessibility bypass should be removed.(´¼°ùùÿÿÿÿ
+B
+java:S3011W",This accessibility bypass should be removed.(å¯­ª
+B
+java:S3011Z",This accessibility bypass should be removed.(Ğ©èú
+W
+java:S3878]"ADisambiguate this call by either casting as "Class" or "Class[]".(’¥”£
+B
+java:S3011^",This accessibility bypass should be removed.(©„¨‡
+M	java:S106p"9Replace this use of System.out or System.err by a logger.(ƒÚáB
+S	java:S106r"9Replace this use of System.out or System.err by a logger.(¾Ô…øÿÿÿÿ
