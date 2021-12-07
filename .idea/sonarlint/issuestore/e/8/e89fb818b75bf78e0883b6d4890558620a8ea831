@@ -1,16 +1,0 @@
-
-S	java:S106"9Replace this use of System.out or System.err by a logger.(¨Ê·ÿøÿÿÿÿ
-t
-java:S1171"YMove the contents of this initializer to a standard constructor or to field initializers.(ÒÌâ–øÿÿÿÿ
-S	java:S106"9Replace this use of System.out or System.err by a logger.(åà¦úüÿÿÿÿ
-N	java:S106"9Replace this use of System.out or System.err by a logger.(¨ìŞÎ
-S	java:S106"9Replace this use of System.out or System.err by a logger.(£ÔÓ×ÿÿÿÿÿ
-S	java:S106"9Replace this use of System.out or System.err by a logger.(®ßüÿÿÿÿ
-S	java:S106"9Replace this use of System.out or System.err by a logger.(Æì° úÿÿÿÿ
-c
-java:S1104
-"MMake s a static final constant or non-public and provide accessors if needed.(¦ûß
-=
-java:S1444
-"'Make this "public static s" field final(¦ûß
-o	java:S120"ZRename this package name to match the regular expression '^[a-z_]+(\.[a-z_][a-z0-9_]*)*$'.(Ï¢¨

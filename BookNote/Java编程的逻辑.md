@@ -2286,3 +2286,488 @@ MyClassLoader从BASE_DIR下的路径中加载类，它先读取class文件，转
 - Email地址。
 - 中文字符。
 
+### 函数式编程
+
+Java 8引入了一个重要新语法——Lambda表达式，它是一种紧凑的传递代码的方式，利用它，可以实现简洁灵活的函数式编程。
+
+#### lambda表达式
+
+##### 通过接口传递代码
+
+**针对接口而非具体类型进行编程，可以降低程序的耦合性，提高灵活性，提高复用性**。接口常被用于传递代码，比如，我们知道File有如下方法：
+
+``` Java
+		public File [] listFiles(FilenameFilter filter)
+```
+
+listFiles需要的其实不是FilenameFilter对象，而是它包含的如下方法：
+
+```Java
+		boolean accept(File dir,String name);
+```
+
+或者说，listFiles希望接受一段方法代码作为参数，但没有办法直接传递这个方法代码本身，只能传递一个接口。再如，类Collections中的很多方法都接受一个参数Comparator，比如：
+
+```Java
+		public static <T> void sort(List<T> list,Comparator<? super T> c)
+```
+
+它们需要的也不是Comparator对象，而是它包含的如下方法：
+
+```Java
+		int compare(T o1, T o2);
+```
+
+但是，没有办法直接传递方法，只能传递一个接口。又如，异步任务执行服务ExecutorService，提交任务的方法有：
+
+```Java
+		<T> Future<T> submit (Callable<T> task);
+		Future<?> submit(Runnable task);
+```
+
+Callable和Runnable接口也用于传递任务代码。
+
+通过接口传递行为代码，就要传递一个实现了该接口的实例对象，最简洁的方式是使用匿名内部类：
+
+![image-20211203091819489](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211203091819489.png)
+
+提交一个最简单的任务，代码为：
+
+```Java
+		ExecutorService executor = Executors.newFixedThreadPool(100);
+		executor.submit(new Runnable(){
+				@override
+      	public void run(){
+        		System.out.println("hello world");
+        }
+		});
+```
+
+#### Lambda语法
+
+Java 8提供了一种新的紧凑的传递代码的语法：Lambda表达式。对于前面列出文件的例子，代码可以改为：
+
+![image-20211203092654156](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211203092654156.png)
+
+**相比匿名内部类，传递代码变得更为直观，不再有实现接口的模板代码，不再声明方法，也没有名字，而是直接给出了方法的实现代码。Lambda表达式由->分隔为两部分，前面是方法的参数，后面{}内是方法的代码**。上面的代码可以简化为：
+
+```Java
+		File [] files = f.listFiles((File dir,String name) -> {
+    		return name.endsWith(".txt");
+    });
+```
+
+**当主体代码只有一条语句的时候，{}和return语句也可以省略，上面的代码可以变为：
+
+``` Java
+		File [] files = f.listFiles((File dir, String name) -> name.endsWith(".txt"));
+```
+
+**没有括号的时候，主体代码是一个表达式，这个表达式的值就是函数的返回值，结尾不能加分号，也不能加return语句。**
+
+方法的参数类型声明也可以省略，上面的代码还可以继续简化为：
+
+```Java
+		File files = f.listFiles((dir, name) -> name.endsWith(".txt"));
+```
+
+**之所以可以省略方法的参数类型，是因为Java可以自动推断出来，它知道listFiles接受的参数类型是FilenameFilter，这个接口只有一个方法accept，这个方法的两个参数类型分别是File和String。**
+
+排序的代码用lambda表达式可以写为：
+
+```Java
+		Arrays.sort(files, (f1, f2) -> f1.getName().compareTo(f2.getName()));
+```
+
+提交任务的代码用Lambda表达式可以写为：
+
+```Java
+		executor.submit(() -> System.out.println("hello, world"));
+```
+
+**参数部分为空，写为()。当参数只有一个的时候，参数部分的括号可以省略**。比如，File还有如下方法：
+
+![image-20211203101136845](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211203101136845.png)
+
+**Lambda表达式也可以访问定义在主体代码外部的变量，但对于局部变量，它也只能访问final类型的变量，与匿名内部类的区别是，它不要求变量声明为final，但变量事实上不能被重新赋值**。比如：
+
+![image-20211203101430561](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211203101430561.png)
+
+这个原因与匿名内部类是一样的，Java会将msg的值作为参数传递给Lambda表达式，为Lambda表达式建立一个副本，它的代码访问的是这个副本，而不是外部声明的msg变量。如果允许msg被修改，则程序员可能会误以为Lambda表达式读到修改后的值，引起更多的混淆。为什么非要建立副本，直接访问外部的msg变量不行吗？不行，因为msg定义在栈中，当Lambda表达式被执行的时候，msg可能早已被释放了。如果希望能够修改值，可以将变量定义为实例变量，或者将变量定义为数组。
+
+#### 函数式接口
+
+**Java 8引入了函数式接口的概念，函数式接口也是接口，但只能有一个抽象方法**，前面提及的接口都只有一个抽象方法，都是函数式接口。之所以强调是“抽象”方法，是因为Java 8中还允许定义静态方法和默认方法。Lambda表达式可以赋值给函数式接口，比如：
+
+![image-20211203101831873](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211203101831873.png)
+
+如果看这些接口的定义，会发现它们都有一个注解@FunctionalInterface。它清晰地告知使用者这是一个函数式接口，不过，这个注解不是必需的，不加，只要只有一个抽象方法，也是函数式接口。但如果加了，而又定义了超过一个抽象方法，Java编译器会报错。
+
+##### 预定义的函数式接口
+
+Java 8定义了大量的预定义函数式接口，用于常见类型的代码传递，这些函数定义在包java.util.function下，主要接口如下所示：
+
+![image-20211203102319599](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211203102319599.png)
+
+对于基本类型boolean、int、long和double，为避免装箱/拆箱，Java 8提供了一些专门的函数，比如，int相关的部分函数：
+
+![image-20211203102403734](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211203102403734.png)
+
+它们被大量用于Java 8的函数式数据处理Stream相关的类中，即使不使用Stream，也可以在自己的代码中直接使用这些预定义的函数。
+
+**Predicate示例**
+
+假如有一个Student类，有name和score属性
+
+```Java
+		class Student{
+				private String name;
+      	private double socre;
+		}
+		//省略了构造函数和setter、getter方法
+```
+
+有一个学生列表：
+
+``` Java
+		List<Student> students = new ArrayList<Student>();
+```
+
+在日常开发中，列表处理的一个常见需求是过滤，列表的类型经常不一样，过滤的条件也经常变化，但主体逻辑都是类似的，可以借助Predicate写一个通用的方法，如下所示：
+
+```Java
+		public static <E> List<E> filter (List<E>list, Predicate<E> pred){
+				List<E> retList = new ArrayList<>();
+      	for(E e : list){
+          if(pred.test(e)){
+           		retList.add(e)
+          }
+        }
+      	return retList;
+		}
+
+		//过滤90分以上的
+		students = filter(students, t->t.getScore() > 90);
+```
+
+
+
+**Function示例 **
+
+列表处理的另一个常见需求是转换。比如，给定一个学生列表，需要返回名称列表，或者将名称转换为大写返回，可以借助Function写一个通用的方法，如下所示：
+
+![image-20211203105930449](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211203105930449.png)
+
+**Consumer示例**
+
+在的例子中，为每个学生创建了一个新的对象，另一种常见的情况是直接修改原对象，通过代码传递，这时，可以用Consumer写一个通用的方法：
+
+![image-20211203110224372](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211203110224372.png)
+
+##### 方法引用
+
+Lambda表达式经常用于调用对象的某个方法，比如
+
+```Java
+		List<String> names = map(students,t->t.getName());
+```
+
+这时，它可以进一步简化，如下所示：
+
+```Java
+		List<String> names = map(students,Student::getName);
+```
+
+**Student::getName这种写法是Java 8引入的一种新语法，称为方法引用。它是Lambda表达式的一种简写方法，由::分隔为两部分，前面是类名或变量名，后面是方法名**。方法可以是实例方法，也可以是静态方法，但含义不同。
+
+##### 函数的复合
+
+函数式接口和Lambda表达式还可用作方法的返回值，传递代码回调用者，将这两种用法结合起来，可以构造复合的函数，使程序简洁易读。
+
+感觉好复杂，没咋看懂。。
+
+#### 函数式数据处理：基本用法
+
+针对常见的集合数据处理，Java 8引入了一套新的类库，位于包java.util.stream下，称为Stream API。它们是函数式的，非常简洁、灵活、易读。
+
+接口Stream类似于一个迭代器，但提供了更为丰富的操作，Stream API的主要操作就定义在该接口中。Java 8给Collection接口增加了两个默认方法：stream()返回的是一个顺序流，parallelStream()返回的是一个并行流。顺序流就是由一个线程执行操作。而并行流背后可能有多个线程并行执行，使用并行流不需要显式管理线程，使用方法与顺序流是一样的。
+
+##### 基本示例
+
+**基本过滤**
+
+返回学生列表中90分以上的：
+
+```Java 
+		List<Student> above90List = students.stream().filter(t->g.getScore()>90).collect(Collectors.toList());
+```
+
+先通过stream()得到一个Stream对象，然后调用Stream上的方法，filter()过滤得到90分以上的，它的返回值依然是一个Stream，为了转换为List，调用了collect方法并传递了一个Collectors.toList()，表示将结果收集到一个List中。
+
+这种数据处理方式称为函数式数据处理。与传统代码相比，其特点是：
+
+- 没有显式的循环迭代，循环过程被Stream的方法隐藏了。
+- 提供了声明式的处理函数，比如filter，它封装了数据过滤的功能，而传统代码是命令式的，需要一步步的操作指令。
+- 流畅式接口，方法调用链接在一起，清晰易读。
+
+**基本转换**
+
+根据学生列表返回名称列表：
+
+```Java
+		List <String> nameList = students.stream().map(t->t.getName()).collect(Collectors.toList());
+```
+
+##### 基本的过滤和转换组合
+
+返回90分以上的学生名称列表，使用Stream API，可以将基本函数filter()和map()结合起来，代码可以这样：
+
+```Java
+		List<String> nameList = students.stream().filter(t->t.getScore() > 90).map(t->t.getName()).collect(Collectors.toList());			
+```
+
+filter()和map()都需要对流中的每个元素操作一次，一起使用只需要遍历一次。实际上，调用filter()和map()都不会执行任何实际的操作，它们只是在构建操作的流水线，调用collect才会触发实际的遍历执行，在一次遍历中完成过滤、转换以及收集结果的任务。像filter和map这种不实际触发执行、用于构建流水线、返回Stream的操作称为中间操作（intermediate operation），而像collect这种触发实际执行、返回具体结果的操作称为终端操作（terminal operation）。
+
+##### 中间操作
+
+除了filter和map, Stream API的中间操作还有distinct、sorted、skip、limit、peek、mapToLong、mapToInt、mapToDouble、fatMap：
+
+- distinct：返回一个新的Stream，过滤重复的元素，只留下唯一的元素，是否重复是根据equals方法来比较的，distinct可以与其他函数（如filter、map）结合使用。比如，返回字符串列表中长度小于3的字符串、转换为小写、只保留唯一的。
+- sorted：有两个sorted方法，都返回一个排序后的Stream。第一个方法假定元素实现了Comparable接口，第二个方法接受一个自定义的Comparator。
+- skip/limit：skip跳过流中的n个元素，如果流中元素不足n个，返回一个空流，limit限制流的长度为maxSize。
+- flatMap：它接受一个函数mapper，对流中的每一个元素，mapper会将该元素转换为一个流Stream，然后把新生成流的每一个元素传递给下一个操作。
+
+**终端操作**
+
+- max/min：返回流中的最大值/最小值
+- count：返回流中元素的个数
+- allMatch/anyMatch/noneMatch：这几个函数都接受一个谓词Predicate，返回一个boolean值，用于判定流中的元素是否满足一定的条件。
+- findFirst/findAny：findFirst返回第一个元素，而findAny返回任一元素
+- forEach：接受一个Consumer，对流中的每一个元素，传递元素给Consumer。区别在于：在并行流中，forEach不保证处理的顺序，而forEachOrdered会保证按照流中元素的出现顺序进行处理。
+- toArray：将流转换为数组
+- reduce：它是max/min/count的更为通用的函数，将流中的元素归约为一个值。
+
+#### 组合式异步编程
+
+Java 8增加了一个新的类CompletableFuture，它是对并发编程的增强，它可以方便地将多个有一定依赖关系的异步任务以流水线的方式组合在一起，大大简化多异步任务的开发。
+
+使用ExecutorService可以方便地提交单个独立的异步任务，可以方便地在需要的时候通过Future接口获取异步任务的结果，但对于多个尤其是有一定依赖关系的异步任务，这种支持就不够了。于是，就有了CompletableFuture，它是一个具体的类，实现了两个接口，一个是Future，另一个是CompletionStage。Future表示异步任务的结果，而CompletionStage的字面意思是完成阶段。**多个CompletionStage可以以流水线的方式组合起来，对于其中一个CompletionStage，它有一个计算任务，但可能需要等待其他一个或多个阶段完成才能开始，它完成后，可能会触发其他阶段开始运行。**CompletionStage提供了大量方法，使用它们，可以方便地响应任务事件，构建任务流水线，实现组合式异步编程。
+
+##### 与Future/FutureTask对比
+
+**基本的任务执行服务**
+
+![image-20211206190448523](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211206190448523.png)
+
+externalTask表示外部任务，这里使用了Lambda表达式，delayRandom用于模拟延时。
+
+假定有一个异步任务执行服务，其代码为：
+
+```Java
+		private static ExecutorService executor = Executors.newFixedThreadPool(10);
+```
+
+通过任务执行服务调用外部服务，一般返回Future，表示异步结果，示例代码为：
+
+```Java
+		public static Future<Integer> callExeternalService(){
+				return executor.submit(externalTask);
+		}
+```
+
+在主程序中，结合异步任务和本地调用的示例代码为：
+
+![image-20211206190958142](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211206190958142.png)
+
+**基本的CompletableFuture**
+
+使用CompletableFuture可以实现类似上面的功能，不过，它不支持使用Callable表示异步任务，而支持Runnable和Supplier。**Supplier替代Callable表示有返回结果的异步任务，与Callable的区别是，它不能抛出受检异常，如果会发生异常，可以抛出运行时异常。**
+
+使用Supplier表示异步任务，代码与Callable类似，替换变量类型即可：
+
+```Java
+		private static Supplier<Integer> externalTask() = ()->{
+				int time = delayRandom(20, 20000);
+    		return time;
+		};
+```
+
+使用CompletableFuture调用外部服务的代码可以为：
+
+```Java
+		public static Future<Integer> callExternalService(){
+				return CompletableFuture.supplyAsync(externalTask,executor);
+		}
+```
+
+supplyAsync是一个静态方法，它接受两个参数supplier和executor，使用executor执行supplier表示的任务，返回一个CompletableFuture，调用后，任务被异步执行，这个方法立即返回。supplyAsync还有一个不带executor参数的方法，一般来说，如果可用的CPU核数大于2，会使用Java 7引入的Fork/Join任务执行服务，即ForkJoinPool.commonPool()，该任务执行服务背后的工作线程数一般为CPU核数减1，即Runtime.getRuntime(). availableProcessors()-1，否则，会使用ThreadPerTaskExecutor，它会为每个任务创建一个线程。**对于CPU密集型的运算任务，使用Fork/Join任务执行服务是合适的，但对于一般的调用外部服务的异步任务，Fork/Join可能是不合适的，因为它的并行度比较低，可能会让本可以并发的多任务串行运行，这时，应该提供Executor参数。**
+
+**CompletableFuture对Future的基本增强**
+
+Future有的接口，CompletableFuture都是支持的，不过，CompletableFuture还有一些额外的相关方法：
+
+- join与get方法类似，也会等待任务结束，但它不会抛出受检异常。如果任务异常结束了，join会将异常包装为运行时异常CompletionException抛出。
+- Future有isDone方法检查任务是否结束了，但不知道任务是正常结束还是异常结束， isCompletedExceptionally方法可以判断任务是否是异常结束。
+- getNow与join类似，区别是，如果任务还没有结束，getNow不会等待，而是会返回传入的参数valueIfAbsent。
+
+**进一步理解Future/CompletableFuture**
+
+其实，任务执行服务与异步结果Future不是绑在一起的，可以自己创建线程返回异步结果。使用FutureTask调用外部服务，代码可以为：
+
+![image-20211206195505037](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211206195505037.png)
+
+内部自己创建了一个线程，线程调用FutureTask的run方法。，run方法会调用externalTask的call方法，并保存结果或碰到的异常，唤醒等待结果的线程。
+
+使用CompletableFuture，也可以直接创建线程，并返回异步结果，代码可以为：
+
+![image-20211206195559842](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211206195559842.png)
+
+这两个方法显式设置任务的状态和结果，complete设置任务成功完成，结果为value, completeExceptionally设置任务异常结束，异常为ex。Future接口没有对应的方法，FutureTask有相关方法但不是public的（是protected的）。设置完后，它们都会触发其他依赖它们的CompletionStage。
+
+##### 响应结果或异常
+
+使用Future，只能通过get获取结果，而get可能会需要阻塞等待，而通过CompletionStage，可以注册回调函数，当任务完成或异常结束时自动触发执行。有两类注册方法：whenComplete和handle.
+
+- whenComplete的参数action表示回调函数，不管前一个阶段是正常结束还是异常结束，它都会被调用，函数类型是BiConsumer，接受两个参数，第一个参数是正常结束时的结果值，第二个参数是异常结束时的异常，BiConsumer没有返回值。whenComplete的返回值还是CompletableFuture，它不会改变原阶段的结果，还可以在其上继续调用其他函数。如以下简单实例。
+
+  ![image-20211206200058202](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211206200058202.png)
+
+​       result表示前一个阶段的结果，ex表示异常，只可能有一个不为null。如果不希望当前线程执行，可以使用其他两个以Async结尾的异步注册方法。
+
+- whenComplete只是注册回调函数，不改变结果，它返回了一个CompletableFuture，但这个CompletableFuture的结果与调用它的CompletableFuture是一样的，还有一个类似的注册方法handle。**回调函数是一个BiFunction，也是接受两个参数，一个是正常结果，另一个是异常，但BiFunction有返回值，在handle返回的CompletableFuture中，结果会被BiFunction的返回值替代，即使原来有异常，也会被覆盖。**
+
+  ![image-20211206200340421](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211206200340421.png)
+
+​        输出为"hello"。异步任务抛出了异常，但通过handle方法，改变了结果。与whenComplete类似，handle也有对应的异步注册方法handleAsync。
+
+- whenComplete和handle都是既响应正常完成也响应异常，如果只对异常感兴趣，可以使用exceptionally。它注册的回调函数是Function，接受的参数为异常，返回一个值，与handle类似，它也会改变结果。
+
+##### 构建依赖单一阶段的任务流
+
+**1.thenRun**
+
+在一个阶段正常完成后，执行下一个任务,thenRun是同步版本，有对应的异步版本thenRunAsync。thenRun指定的下一个任务类型是Runnable，它不需要前一个阶段的结果作为参数，也没有返回值，所以，在thenRun返回的CompletableFuture中，结果类型为Void，即没有结果。![image-20211206200800044](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211206200800044.png)
+
+**2. thenAccept/thenApply**
+
+如果下一个任务需要前一个阶段的结果作为参数，可以使用thenAccept或thenApply方法。thenAccept的任务类型是Consumer，它接受前一个阶段的结果作为参数，没有返回值。thenApply的任务类型是Function，接受前一个阶段的结果作为参数，返回一个新的值，这个值会成为thenApply返回的CompletableFuture的结果值。
+
+![image-20211206201718841](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211206201718841.png)
+
+taskA的结果是"hello"，传递给了taskB, taskB转换结果为"HELLO"，再把结果给taskC, taskC进行了输出，所以输出为：
+
+consume: HELLO。
+
+**CompletableFuture中有很多名称带有run、accept或apply的方法，它们一般与任务的类型相对应，run与Runnable对应，accept与Consumer对应，apply与Function对应。**
+
+**3. thenCompose**
+
+与thenApply类似，还有一个方法thenCompose，这个任务类型也是Function，也是接受前一个阶段的结果，返回一个新的结果。不过，这个转换函数fn的返回值类型是CompletionStage，也就是说，它的返回值也是一个阶段，如果使用thenApply，结果就会变为CompletableFuture<CompletableFuture<U>>，而使用thenCompose，会直接返回fn返回的CompletionStage。
+
+##### 构建依赖两个阶段的任务流
+
+CompletableFuture还有一些方法用于在两个阶段都完成后执行另一个任务：runAfterBoth对应的任务类型是Runnable, thenCombine对应的任务类型是BiFunction，接受前两个阶段的结果作为参数，返回一个结果；thenAcceptBoth对应的任务类型是BiConsumer，接受前两个阶段的结果作为参数，但不返回结果。它们都有对应的异步和带Executor参数的版本，用于指定下一个任务由谁执行。当前阶段和参数指定的另一个阶段other没有依赖关系，并发执行，当两个都执行结束后，开始执行指定的另一个任务。看个简单的示例，任务A和B执行结束后，执行任务C合并结果，代码为：
+
+![image-20211206203139814](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211206203139814.png)
+
+输出结果为：taskA, taskB
+
+如果只需要其中任意一个阶段完成，可以使用方法：runAfterEither，applyToEither，acceptEither
+
+##### 构建依赖多个阶段的任务流
+
+如果依赖的阶段不止两个，可以使用如下方法：
+
+- 对于allOf，当所有子CompletableFuture都完成时，它才完成，如果有的CompletableFuture异常结束了，则新的CompletableFuture的结果也是异常。不过，它并不会因为有异常就提前结束，而是会等待所有阶段结束，如果有多个阶段异常结束，新的CompletableFuture中保存的异常是最后一个的。新的CompletableFuture会持有异常结果，但不会保存正常结束的结果，如果需要，可以从每个阶段中获取。
+- 对于anyOf返回的CompletableFuture，当第一个子CompletableFuture完成或异常结束时，它相应地完成或异常结束，结果与第一个结束的子CompletableFuture一样。
+
+### Java8的日期和时间API
+
+Java 8以前的日期和时间API，主要的类是Date和Calendar，由于它的设计有一些不足，Java 8引入了一套新的API，位于包java.time下。
+
+#### 表示日期和时间
+
+Java 8中表示日期和时间的类有多个，主要的有：
+
+- Instant：Instant表示时刻，获取当前时刻，代码为：
+
+  ```Java
+  		Instant now = Instant.now();
+  ```
+
+  可以根据Epoch Time（纪元时）创建Instant。比如，另一种获取当前时刻的代码可以为：
+
+  ```Java
+  		Instant now = Instant.ofEpochMilli(System.currentTimeMillis());
+  ```
+
+  Date也表示时刻，Instant和Date可以通过纪元时相互转换。
+
+  ![image-20211206205318503](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211206205318503.png)
+
+- LocalDateTime：LocalDateTime表示与时区无关的日期和时间，获取系统默认时区的当前日期和时间，代码为：
+
+  ```Java
+  			LocalDateTime ldt = LocalDateTime.now();
+  ```
+
+  还可以直接用年月日等信息构建LocalDateTime。比如，表示2017年7月11日20点45分5秒，代码可以为：
+
+  ```Java
+  		LocalDateTime ldt = LocalDateTime.of(2017,7,11,20,45,5);
+  ```
+
+  LocalDateTime有很多方法，可以获取年月日时分秒等日历信息，比如：
+
+  ![image-20211206205930310](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211206205930310.png)
+
+  还可以获取星期几等信息，比如：
+
+```Java
+		public DayOfWeek getDayOfWeek()	
+```
+
+- ZoneId/ZoneOffset：LocalDateTime不能直接转为时刻Instant，转换需要一个参数ZoneOffset,ZoneOffset表示相对于格林尼治的时区差，北京是+08:00。
+
+![image-20211206211425765](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211206211425765.png)
+
+- LocalDate/LocalTime：LocalDateTime由两部分组成，一部分是日期LocalDate，另一部分是时间LocalTime。它们的用法也很直观。
+- ZonedDateTime：ZonedDateTime表示特定时区的日期和时间，获取系统默认时区的当前日期和时间，LocalDateTime.now()也是获取默认时区的当前日期和时间。LocalDateTime内部不会记录时区信息，只会单纯记录年月日时分秒等信息，而ZonedDateTime除了记录日历信息，还会记录时区，它的其他大部分构建方法都需要显式传递时区。
+
+#### 格式化
+
+Java 8中，主要的格式化类是java.time.format.DateTimeFormatter，它是线程安全的：
+
+![image-20211206213600561](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211206213600561.png)
+
+![image-20211206213617565](/Users/fuguo/IdeaProjects/ImproveJava/BookNote/image-20211206213617565.png)
+
+#### 修改时间
+
+LocalDateTime的withXXX方法，和atTime()。
+
+LocalDateTime有很多plusⅩⅩⅩ和minusⅩⅩⅩ方法，分别用于相对增加和减少时间。
+
+#### 时间段的计算
+
+Java 8中表示时间段的类主要有两个：Period和Duration。Period表示日期之间的差，用年月日表示，不能表示时间；Duration表示时间差，用时分秒等表示，也可以用天表示，一天严格等于24小时，不能用年月表示。
+
+计算两个日期之间的差，看个Period的例子：
+
+```Java
+		LocalDate ld1 = LocalDate.of(2016,3,24);
+		LocalDate ld2 = LocalDate.of(2017,7,12);
+		Period period = Period.between(ld1,ld2);
+		System.out.println(period.getYears() + "年" + period.getMonths() +"月",period.getDays() +"日");
+```
+
+假定早上9点是上班时间，过了9点算迟到，迟到要统计迟到的分钟数：
+
+```Java
+		long lateMinutes = Duration.between(LocalTime.of(9,0), LocalTime.now()).toMinutes();
+```
+
+##### 与Date/Calendar对象的转换
+
+Date可以与Instant通过毫秒数相互转换，对于其他类型，也可以通过毫秒数/Instant相互转换。比如，将LocalDateTime按默认时区转换为Date，将ZonedDateTime转换为Calendar。将Date按默认时区转换为LocalDateTime，将Calendar转换为ZonedDateTime等。
+

@@ -1,0 +1,24 @@
+
+j	java:S116"PRename this field "SMALL" to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(ê€ÚÎÿÿÿÿÿ
+k	java:S116"QRename this field "MEDIUM" to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(£ÜÁÁþÿÿÿÿ
+<
+java:S1170"!Make this final field static too.(ê€ÚÎÿÿÿÿÿ
+<
+java:S1170"!Make this final field static too.(£ÜÁÁþÿÿÿÿ
+2
+java:S1116"Remove this empty statement.(åÄœ©
+M
+java:S1117"8Rename "name" which hides the field declared at line 13.(ÛŸô
+>
+java:S1481")Remove this unused "name" local variable.(ÛŸô
+h
+java:S3776"RRefactor this method to reduce its Cognitive Complexity from 16 to the 15 allowed.(Çµí‘
+S	java:S106"9Replace this use of System.out or System.err by a logger.(âªÜÒùÿÿÿÿ
+q
+java:S2159""VRemove this call to "equals"; comparisons between unrelated types always return false.(£ÍÏáùÿÿÿÿ
+N	java:S106#"9Replace this use of System.out or System.err by a logger.(½ÒÛÆ
+S	java:S106("9Replace this use of System.out or System.err by a logger.(âªÜÒùÿÿÿÿ
+N	java:S106,"9Replace this use of System.out or System.err by a logger.(½ÒÛÆ
+S	java:S106/"9Replace this use of System.out or System.err by a logger.(âªÜÒùÿÿÿÿ
+i	java:S101
+"MRename this class name to match the regular expression '^[A-Z][a-zA-Z0-9]*$'.(½¼……8—€Ù¢Ø/
